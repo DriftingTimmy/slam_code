@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<lx_mapping>
+    <local_map_save_path>/media/lx/文件及资料/Data/lx_map/loam_test/playground/local_laser/</local_map_save_path>
+    <KeyFrame_save_path>/media/lx/文件及资料/Data/lx_map/loam_test/playground/KeyFrame/</KeyFrame_save_path>
+    <save_keyframe>1</save_keyframe>                                                <!--1代表存keyframe，0代表不存-->
+    <pose_save_path>/media/lx/文件及资料/Data/lx_map/loam_test/playground/</pose_save_path>
+    <keyframe_pose_save_txt>/media/lx/文件及资料/Data/lx_map/loam_test/playground/posefile_keyframe.txt</keyframe_pose_save_txt>
+    <g2o_file_path>/media/lx/文件及资料/Data/lx_map/loam_test/playground/</g2o_file_path>
+    <grid_map_feature_num>15</grid_map_feature_num>
+    <grid_map_match_num>7</grid_map_match_num>
+</lx_mapping>

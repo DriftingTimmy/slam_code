@@ -1,0 +1,6 @@
+<launch>
+
+  <node pkg="loam_velodyne" type="poles_detect" name="poles_detect" output="screen" >
+  </node>
+
+</launch>

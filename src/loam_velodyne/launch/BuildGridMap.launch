@@ -1,0 +1,12 @@
+<launch>
+
+  <node pkg="loam_velodyne" type="scanRegistration" name="scanRegistration" output="screen"/>
+  <node pkg="loam_velodyne" type="back_end_odom" name="back_end_odom" output="screen"/>
+  <node pkg="loam_velodyne" type="BuildOccupancyGridMap" name="BuildOccupancyGridMap" output="screen"/>
+  <node pkg="loam_velodyne" type="laserOdometry" name="laserOdometry" output="screen" respawn="true">
+  </node>
+
+  <node pkg="loam_velodyne" type="laserMapping" name="laserMapping" output="screen"/>
+  <node pkg="loam_velodyne" type="transformMaintenance" name="transformMaintenance" output="screen"/>
+
+</launch>

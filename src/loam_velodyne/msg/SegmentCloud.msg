@@ -1,0 +1,9 @@
+int32 size
+int32 frame_id
+float64 time_stamp
+float32[3] centroid
+float32[7] eigen_value_feature
+float32[3] estimate_pose
+sensor_msgs/PointCloud2 segcloud
+float32[4] inc_dist
+float32 diff_time

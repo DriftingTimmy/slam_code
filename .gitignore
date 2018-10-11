@@ -1,0 +1,41 @@
+# backup files
+*.bak
+*~
+*.orig
+*.autosave
+*.pcd
+
+# qtcreator
+/*.config
+/*.creator
+/*.files
+/*.includes
+/*.user
+/*.creator.user.*
+
+# eclipse
+.metadata/
+/RemoteSystemsTempFiles/
+
+# generated files
+*.pyc
+
+# ROS specific folders
+build
+build_isolated
+devel
+devel_isolated
+install
+/logs
+.catkin_tools
+.catkin_workspace
+.idea
+# cscope
+cscope*out
+cmake-build-debug/
+
+*.swp
+*.workspace
+
+# doxygen auto-generated files
+doxyerrors.log
