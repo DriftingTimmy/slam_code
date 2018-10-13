@@ -22,6 +22,7 @@
 #include <pcl/common/transforms.h>
 #include "segmenter.h"
 #include "Odometry.h"
+#include "graphSlam.h"
 
 //typedef pcl::PointXYZ Point;
 //typedef pcl::PointXYZI PointI;
@@ -47,6 +48,7 @@ namespace LxSlam {
     float transformBefMapped[6] = {0};
     float transformAftMapped[6] = {0};
 
+    ///New version of the modified part, including different classes;
     double cur_time = 0, cur_vel = 0, cur_theta = 0;
     double last_time = 0, last_vel = 0, last_theta = 0;
     const float dist_to_build_local_map = 5;
@@ -54,6 +56,7 @@ namespace LxSlam {
     sensor_msgs::Imu Imu_msg;
     Odometry odom;
     Segmenter segmenter;
+    graphOptmizer graph;
 
     ros::Publisher *pubLaserOdometry2Pointer = NULL;
     ros::Publisher *seg_points_pub = NULL;
@@ -104,41 +107,18 @@ namespace LxSlam {
         return false;
     }
 
-    Eigen::Vector3f mergeMultiSensors(double diff_time, float x, float y, float yaw,
-                                      float &inc_distance, float &diff_theta) {
-        std::cout << "Begin merge the sensors' messages!" << std::endl;
-
-        inc_distance = (cur_vel + last_vel) / 2 * diff_time;
-        diff_theta = cur_theta - last_theta;
-
-        Eigen::Vector3f inc_distance_car;
-        inc_distance_car << inc_distance * cosf(diff_theta / 2.), inc_distance * sinf(diff_theta / 2.), diff_theta;
-
-        Eigen::Matrix3f car_rotate;
-        car_rotate << cosf(yaw), -sinf(yaw), 0,
-                sinf(yaw), cosf(yaw), 0,
-                0, 0, 1;
-
-        Eigen::Vector3f inc_distance_global;
-        Eigen::Vector3f integrated_pose = {x, y, yaw};
-        inc_distance_global = car_rotate * inc_distance_car;
-        integrated_pose += inc_distance_global;
-
-        return integrated_pose;
-    }
-
-    Eigen::Matrix4f pose_to_matrix(const double &pose_x, const double &pose_y, const double &pose_z,
-                                   const double &pose_roll, const double &pose_pitch, const double &pose_yaw) {
-        ///generate transform matrix according to current pose
-        Eigen::AngleAxisf current_rotation_x(pose_roll, Eigen::Vector3f::UnitX());
-        Eigen::AngleAxisf current_rotation_y(pose_pitch, Eigen::Vector3f::UnitY());
-        Eigen::AngleAxisf current_rotation_z(pose_yaw, Eigen::Vector3f::UnitZ());
-        Eigen::Translation3f current_translation(pose_x, pose_y, pose_z);
-        Eigen::Matrix4f transform_matrix =
-                (current_translation * current_rotation_z * current_rotation_y * current_rotation_x).matrix();
-
-        return transform_matrix;
-    }
+//    Eigen::Matrix4f pose_to_matrix(const double &pose_x, const double &pose_y, const double &pose_z,
+//                                   const double &pose_roll, const double &pose_pitch, const double &pose_yaw) {
+//        ///generate transform matrix according to current pose
+//        Eigen::AngleAxisf current_rotation_x(pose_roll, Eigen::Vector3f::UnitX());
+//        Eigen::AngleAxisf current_rotation_y(pose_pitch, Eigen::Vector3f::UnitY());
+//        Eigen::AngleAxisf current_rotation_z(pose_yaw, Eigen::Vector3f::UnitZ());
+//        Eigen::Translation3f current_translation(pose_x, pose_y, pose_z);
+//        Eigen::Matrix4f transform_matrix =
+//                (current_translation * current_rotation_z * current_rotation_y * current_rotation_x).matrix();
+//
+//        return transform_matrix;
+//    }
 
     bool check_translation() {
 
@@ -300,66 +280,28 @@ namespace LxSlam {
         auto cloud_iter = cloud_to_match.begin();
         for (; cloud_iter < cloud_to_match.begin() + 10; ++cloud_iter) {
 
+            ///Choose the corresponding pointcloud of the same timestamp
             double check_time = fabs(cloud_iter->header.stamp.toSec() - laserOdometry->header.stamp.toSec());
             if (check_time == 0 && !cloud_iter->data.empty() && check_translation()) {
-                ///Choose the corresponding pointcloud of the same timestamp
-                ///Begin EKF part
+
+                ///Begin the odom EKF part to get the ekf pose here;
                 double diff_time = cur_time - last_time;
-                float inc_dist;
-                float diff_theta;
-//            Eigen::Vector3f predict_pose = mergeMultiSensors(diff_time, transformMappedLast[3],
-//                                                             transformMappedLast[4], -transformMappedLast[1],
-//                                                             inc_dist, diff_theta);
+                Eigen::Vector3d mea_pose = {transformMapped[3], transformMapped[4], -transformMapped[1]};
 
                 odom.MergeSensorData(Imu_msg, obd_msg, diff_time);
-//                Eigen::Vector3f measure_pose = {transformMapped[3], transformMapped[4], -transformMapped[1]};
-//
-//                Eigen::Vector3f ekf_pose = getEKFPose(predict_pose, measure_pose, diff_theta, diff_time, inc_dist);
+                odom.setMea(mea_pose);
                 Eigen::Matrix4f ekf_pose = odom.get_ekf_pose();
-                ///Begin the filter part
+
                 pcl::PointCloud<pcl::PointXYZI> cloud_to_save;
                 pcl::fromROSMsg(*cloud_iter, cloud_to_save);
 
-//                pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_to_save_ptr(
-//                        new pcl::PointCloud<pcl::PointXYZI>(cloud_to_save));
-//                pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered_ptr(new pcl::PointCloud<pcl::PointXYZI>());
-//                pcl::VoxelGrid<pcl::PointXYZI> sor;
-//                sor.setInputCloud(cloud_to_save_ptr);
-//                sor.setLeafSize(0.2, 0.2, 0.2);
-//                sor.filter(*cloud_filtered_ptr);
-//
-////            auto size = cloud_filtered_ptr->size();
-//                pcl::PointCloud<pcl::PointXYZI> cloud_mutual;
-//                for (pcl::PointXYZI point : *cloud_filtered_ptr) {
-//                    if (point.z > -1.5 && point.z < 3.5) {
-//                        if (std::hypotf(point.x, point.y) < 30) {
-//                            cloud_mutual.push_back(point);
-//                        }
-//                    }
-//                }
-                segmenter.setInputCloud(cloud_to_save);
-                segmenter.filterInputCloud();
-                segmenter.segCloud();
-                ///Radius and height filters to limit the amount of the processing points
+                pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered_ptr(new pcl::PointCloud<pcl::PointXYZI>());
 
-//            sensor_msgs::PointCloud2 cloud_cluster_pub;
-//            pcl::toROSMsg(cloud_mutual, cloud_cluster_pub);
-//
-//            std::cout << "The clustered cloud size is : " << cloud_cluster_pub.data.size() << std::endl;
-//            cloud_cluster_pub.header.stamp = cloud_iter->header.stamp;
-//            cloud_cluster_pub.header.frame_id = "/camera_init";
-//            seg_points_pub->publish(cloud_cluster_pub);
-///Test the single frame
-//            Eigen::Matrix4f transform = pose_to_matrix(transformMapped[3],transformMapped[4],
-//                                                       transformMapped[5],transformMapped[1],
-//                                                       -transformMapped[0],transformMapped[2]);
                 ///Eigen::Matrix4f transform = pose_to_matrix(ekf_pose[0], ekf_pose[1], 0, 0, 0, ekf_pose[2]);
                 Eigen::Matrix4f transform = ekf_pose;
                 ///对应方式不是上面的getQuat函数里面的对应关系
                 pcl::PointCloud<pcl::PointXYZI> cloud_to_add;
-                pcl::transformPointCloud(cloud_mutual, cloud_to_add, transform);
-//            std::cout << "%%%%The output odometry is " << transformMapped[0] << " " << transformMapped[1] << " " << transformMapped[2]
-//            <<" " << transformMapped[3]<<" " << transformMapped[4]<<" " << transformMapped[5] <<std::endl;
+                pcl::transformPointCloud(cloud_to_save, cloud_to_add, transform);///这里是先累加再进行滤波操作
 
                 if (0.2 < std::hypotf(fabs(transformMapped[3] - transformMappedLast[3]),
                                       fabs(transformMapped[4] - transformMappedLast[4])) < dist_to_build_local_map ||
@@ -369,31 +311,19 @@ namespace LxSlam {
                 }///Add several frames together to make the clusters' pointcloud dense.
                 else {
                     ///SaveToPCD(cloud_to_save , frame_id);
-//            posefile << frame_id << " " << transformMapped[3] << " " << transformMapped[4] << " " << transformMapped[5]
-//                     << " " << transformMapped[2] << " " << -transformMapped[0] << " " << -transformMapped[1]
-//                     << " " << score << std::endl;
+
                     ///save the pose of the single frame
                     *cloud_filtered_ptr = cloud_for_cluster;
 
-                    pcl::RadiusOutlierRemoval<pcl::PointXYZI> outrem;
-                    outrem.setInputCloud(cloud_filtered_ptr);
-                    outrem.setRadiusSearch(0.5);     //设置半径为0.5的范围内找临近点
-                    outrem.setMinNeighborsInRadius(30); //设置查询点的邻域点集数小于30的删除
-                    outrem.filter(*cloud_filtered_ptr);     //执行条件滤波,在半径为0.5在此半径内必须要有30个邻居点，此点才会保存
-
                     /******************************segment************************************/
-                    segmentCloud(cloud_filtered_ptr, ekf_pose);
+                    segmenter.setInputCloud(*cloud_filtered_ptr);
+                    segmenter.filterInputCloud();
+                    segmenter.segCloud();
+//                    segmentCloud(cloud_filtered_ptr, ekf_pose);
                     /******************************segment************************************/
-//            std::cout << posefile << std::endl;
-
-//            Odometry_seg.stamp_ = cloud_iter->header.stamp;
-//            Odometry_seg.setRotation(tf::Quaternion(-geoQuat.y, -geoQuat.z, geoQuat.x, geoQuat.w));
-//            Odometry_seg.setOrigin(tf::Vector3(transformMapped[3], transformMapped[4], transformMapped[5]));
-//            tf_seg->sendTransform(Odometry_seg);
-//            seg_points_pub->publish(*cloud_iter);
-                    ///publish pointcloud for connecting segmatch algorithm.
 
                     frame_id++;
+
                     transformMappedLast[0] = transformMapped[0];
                     transformMappedLast[1] = transformMapped[1];
                     transformMappedLast[2] = transformMapped[2];

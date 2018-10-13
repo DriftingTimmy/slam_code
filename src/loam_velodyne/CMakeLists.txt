@@ -63,21 +63,18 @@ INCLUDE_DIRECTORIES( ${G2O_INCLUDE_DIR} ${CSPARSE_INCLUDE_DIR})
 
 SET( CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
-add_library(segmenter src/segmenter.cpp src/segmenter.h)
+add_library(segmenter src/segmenter.cpp src/segmenter.h src/common_function.h)
 target_link_libraries(segmenter ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBS})
 
-add_library(graphSlam src/graphSlam.cpp src/graphSlam.h include/g2o/edge_se3_plane.h
+add_library(graphSlam src/graphSlam.cpp src/graphSlam.h include/g2o/edge_se3_plane.h src/common_function.h
         include/g2o/edge_se3_priorxy.h include/g2o/edge_se3_priorxyz.h)
 
 target_link_libraries(graphSlam ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBS} ${G2O_LIBS} ${G2O_CORE_LIBRARY}
         ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_PCG} ${G2O_SOLVER_CSPARSE} ${G2O_TYPES_SLAM3D} ${G2O_TYPES_SLAM3D_ADDONS}
         ${G2O_TYPES_DATA})
 
-add_library(Odometry src/Odometry.cpp src/Odometry.h)
+add_library(Odometry src/Odometry.cpp src/Odometry.h src/common_function.h)
 target_link_libraries(Odometry ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBS} ${G2O_LIBS})
-
-add_library(FloorDetection src/FloorDetection.cpp src/FloorDetection.h)
-target_link_libraries(FloorDetection ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBS})
 
 add_executable(scanRegistration src/scanRegistration.cpp)
 target_link_libraries(scanRegistration ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})

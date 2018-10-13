@@ -19,6 +19,7 @@
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <common_function.h>
 
 namespace LxSlam{
 
@@ -35,6 +36,8 @@ public:
     Eigen::Vector3d get_XYYaw_from_odom(nav_msgs::Odometry laser_odom){};
 
     nav_msgs::Odometry get_odom_from_pose(Eigen::Vector3d trans_pose){};
+
+    void setMea(Eigen::Vector3d mea_pose){};
 
 //    void set_tf_pre(Eigen::Matrix4f tf_pre){ tf_prediction_ = tf_pre; };
 //    void set_tf_mea(Eigen::Matrix4f tf_mea) {
@@ -53,7 +56,7 @@ private:
 
     float last_vel_;
     geometry_msgs::Quaternion last_q_;
-    Eigen::Vector3f inc_distance_car;
+    Eigen::Vector3d inc_distance_car;
     double inc_distance;
     double diff_time;
     double diff_theta;

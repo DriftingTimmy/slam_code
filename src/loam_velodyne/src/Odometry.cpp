@@ -7,6 +7,9 @@
 #include <tf/transform_broadcaster.h>
 
 namespace LxSlam{
+    void Odometry::setMea(Eigen::Vector3d mea_pose){
+        measure_pose_ = mea_pose;
+    }
 
     Eigen::Vector3d Odometry::get_XYYaw_from_odom(nav_msgs::Odometry laser_odom){
         Eigen::Vector3d pose_vector;
@@ -45,7 +48,7 @@ namespace LxSlam{
     void Odometry::MergeSensorData(sensor_msgs::Imu imu_data,
                                    nav_msgs::Odometry vel_data,
                                    double diff_time){
-        geometry_msgs::Pose last_pose = odometry_path_.poses.end()->pose;
+//        geometry_msgs::Pose last_pose = odometry_path_.poses.end()->pose;
 
         geometry_msgs::Quaternion cur_q = imu_data.orientation;
         double cur_vel = vel_data.twist.twist.linear.x;
@@ -56,6 +59,11 @@ namespace LxSlam{
 
         inc_distance_car << inc_distance * cos(diff_theta / 2.),
                 inc_distance * sin(diff_theta / 2.), diff_theta;
+
+        predict_pose_ = pose_ekf_ + inc_distance_car;
+
+        last_q_ = cur_q;
+        last_vel_ = cur_vel;
 
     }
 
@@ -88,10 +96,14 @@ namespace LxSlam{
         float pre_yaw = predict_pose_[2];
         float k_yaw = k_filter(2, 2);
 
-        ekf_pose[2] = atan2f(k_yaw * sinf(mea_yaw) + (1 - k_yaw) * sinf(pre_yaw),
+        pose_ekf_[2] = atan2f(k_yaw * sinf(mea_yaw) + (1 - k_yaw) * sinf(pre_yaw),
                              k_yaw * cosf(mea_yaw) + (1 - k_yaw) * cosf(pre_yaw));
         esti_true_Covariance = (Eigen::Matrix3f::Identity() - k_filter) * pred_true_Covariance;
-        return ekf_pose;
+
+//        odometry_path_.poses.push_back(pose_ekf_);
+
+        return pose_to_matrix(pose_ekf_[0], pose_ekf_[1], 0,
+                              0, 0, pose_ekf_[2]);
     }
 
     pcl::PointCloud<pcl::PointXYZI> Odometry::filter_floor

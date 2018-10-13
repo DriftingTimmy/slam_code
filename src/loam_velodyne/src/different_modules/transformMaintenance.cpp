@@ -422,3 +422,63 @@ void DescribeSegmentedCloud(segment& segmented_cloud){
 //    std::string name = "";
 //    double value = 0.0;
 //};
+
+Eigen::Vector3f mergeMultiSensors(double diff_time, float x, float y, float yaw,
+                                  float &inc_distance, float &diff_theta) {
+    std::cout << "Begin merge the sensors' messages!" << std::endl;
+
+    inc_distance = (cur_vel + last_vel) / 2 * diff_time;
+    diff_theta = cur_theta - last_theta;
+
+    Eigen::Vector3f inc_distance_car;
+    inc_distance_car << inc_distance * cosf(diff_theta / 2.), inc_distance * sinf(diff_theta / 2.), diff_theta;
+
+    Eigen::Matrix3f car_rotate;
+    car_rotate << cosf(yaw), -sinf(yaw), 0,
+            sinf(yaw), cosf(yaw), 0,
+            0, 0, 1;
+
+    Eigen::Vector3f inc_distance_global;
+    Eigen::Vector3f integrated_pose = {x, y, yaw};
+    inc_distance_global = car_rotate * inc_distance_car;
+    integrated_pose += inc_distance_global;
+
+    return integrated_pose;
+}
+
+//                    pcl::RadiusOutlierRemoval<pcl::PointXYZI> outrem;
+//                    outrem.setInputCloud(cloud_filtered_ptr);
+//                    outrem.setRadiusSearch(0.5);     //设置半径为0.5的范围内找临近点
+//                    outrem.setMinNeighborsInRadius(30); //设置查询点的邻域点集数小于30的删除
+//                    outrem.filter(*cloud_filtered_ptr);     //执行条件滤波,在半径为0.5在此半径内必须要有30个邻居点，此点才会保存
+
+//            sensor_msgs::PointCloud2 cloud_cluster_pub;
+//            pcl::toROSMsg(cloud_mutual, cloud_cluster_pub);
+//
+//            std::cout << "The clustered cloud size is : " << cloud_cluster_pub.data.size() << std::endl;
+//            cloud_cluster_pub.header.stamp = cloud_iter->header.stamp;
+//            cloud_cluster_pub.header.frame_id = "/camera_init";
+//            seg_points_pub->publish(cloud_cluster_pub);
+///Test the single frame
+//            Eigen::Matrix4f transform = pose_to_matrix(transformMapped[3],transformMapped[4],
+//                                                       transformMapped[5],transformMapped[1],
+//                                                       -transformMapped[0],transformMapped[2]);
+
+
+//                Eigen::Vector3f measure_pose = {transformMapped[3], transformMapped[4], -transformMapped[1]};
+//                Eigen::Vector3f ekf_pose = getEKFPose(predict_pose, measure_pose, diff_theta, diff_time, inc_dist);
+//                pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_to_save_ptr(
+//                        new pcl::PointCloud<pcl::PointXYZI>(cloud_to_save));
+
+//                float inc_dist;
+//                float diff_theta;
+//            Eigen::Vector3f predict_pose = mergeMultiSensors(diff_time, transformMappedLast[3],
+//                                                             transformMappedLast[4], -transformMappedLast[1],
+//                                                             inc_dist, diff_theta);
+
+//            std::cout << "%%%%The output odometry is " << transformMapped[0] << " " << transformMapped[1] << " " << transformMapped[2]
+//            <<" " << transformMapped[3]<<" " << transformMapped[4]<<" " << transformMapped[5] <<std::endl;
+
+//            posefile << frame_id << " " << transformMapped[3] << " " << transformMapped[4] << " " << transformMapped[5]
+//                     << " " << transformMapped[2] << " " << -transformMapped[0] << " " << -transformMapped[1]
+//                     << " " << score << std::endl;

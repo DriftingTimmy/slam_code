@@ -36,7 +36,7 @@ public:
 
     void setInputCloud(pcl::PointCloud<pcl::PointXYZI> cloud){ *input_cloud_ = cloud; };
 
-    void filterInputCloud(){};
+    pcl::PointCloud<pcl::PointXYZI> filterInputCloud(){};
 
     void segCloud(){};
 

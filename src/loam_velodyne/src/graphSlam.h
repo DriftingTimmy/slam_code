@@ -4,108 +4,66 @@
 
 #ifndef PROJECT_GRAPHSLAM_H
 #define PROJECT_GRAPHSLAM_H
-#include <memory>
-#include <ros/time.h>
-
+#include <g2o/types/slam3d/types_slam3d.h>
 #include <g2o/core/sparse_optimizer.h>
+#include <g2o/core/block_solver.h>
+#include <g2o/core/factory.h>
+#include <g2o/core/optimization_algorithm_factory.h>
+#include <g2o/core/optimization_algorithm_gauss_newton.h>
+#include <g2o/solvers/eigen/linear_solver_eigen.h>
+#include <g2o/core/robust_kernel.h>
+#include <g2o/core/robust_kernel_impl.h>
+#include <g2o/core/optimization_algorithm_levenberg.h>
 
-
-namespace g2o {
-    class VertexSE3;
-    class VertexPlane;
-    class VertexPointXYZ;
-    class EdgeSE3;
-    class EdgeSE3Plane;
-    class EdgeSE3PointXYZ;
-    class EdgeSE3PriorXY;
-    class EdgeSE3PriorXYZ;
-}
+#include <opencv/cv.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <ros/ros.h>
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_broadcaster.h>
+#include <common_function.h>
 
 namespace LxSlam {
 
-        class graphSlam {
-        public:
-            graphSlam();
-            ~graphSlam();
+    typedef g2o::BlockSolver_6_3 SlamBlockSolver;
+    typedef g2o::LinearSolverEigen <SlamBlockSolver::PoseMatrixType> SlamLinearSolver;
 
-            /**
-             * @brief add a SE3 node to the graph
-             * @param pose
-             * @return registered node
-             */
-            g2o::VertexSE3* add_se3_node(const Eigen::Isometry3d& pose);
+    struct Id {
 
-            /**
-             * @brief add a plane node to the graph
-             * @param plane_coeffs
-             * @return registered node
-             */
-            g2o::VertexPlane* add_plane_node(const Eigen::Vector4d& plane_coeffs);
+        int counter;
+        double time_ns;
 
-            /**
-             * @brief add a point_xyz node to the graph
-             * @param xyz
-             * @return registered node
-             */
-            g2o::VertexPointXYZ* add_point_xyz_node(const Eigen::Vector3d& xyz);
+    };
 
-            /**
-             * @brief add an edge between SE3 nodes
-             * @param v1  node1
-             * @param v2  node2
-             * @param relative_pose  relative pose between node1 and node2
-             * @param information_matrix  information matrix (it must be 6x6)
-             * @return registered edge
-             */
-            g2o::EdgeSE3* add_se3_edge(g2o::VertexSE3* v1, g2o::VertexSE3* v2, const Eigen::Isometry3d& relative_pose, const Eigen::MatrixXd& information_matrix);
+    class graphOptmizer {
 
-            /**
-             * @brief add an edge between an SE3 node and a plane node
-             * @param v_se3    SE3 node
-             * @param v_plane  plane node
-             * @param plane_coeffs  plane coefficients w.r.t. v_se3
-             * @param information_matrix  information matrix (it must be 3x3)
-             * @return registered edge
-             */
-            g2o::EdgeSE3Plane* add_se3_plane_edge(g2o::VertexSE3* v_se3, g2o::VertexPlane* v_plane, const Eigen::Vector4d& plane_coeffs, const Eigen::MatrixXd& information_matrix);
+    public:
+        graphOptmizer();
 
-            /**
-             * @brief add an edge between an SE3 node and a point_xyz node
-             * @param v_se3        SE3 node
-             * @param v_xyz        point_xyz node
-             * @param xyz          xyz coordinate
-             * @param information  information_matrix (it must be 3x3)
-             * @return registered edge
-             */
-            g2o::EdgeSE3PointXYZ* add_se3_point_xyz_edge(g2o::VertexSE3* v_se3, g2o::VertexPointXYZ* v_xyz, const Eigen::Vector3d& xyz, const Eigen::MatrixXd& information_matrix);
+        ~graphOptmizer();
 
-            /**
-             * @brief add a prior edge to an SE3 node
-             * @param v_se3
-             * @param xy
-             * @param information_matrix
-             * @return
-             */
-            g2o::EdgeSE3PriorXY* add_se3_prior_xy_edge(g2o::VertexSE3* v_se3, const Eigen::Vector2d& xy, const Eigen::MatrixXd& information_matrix);
+        void init();
 
-            g2o::EdgeSE3PriorXYZ* add_se3_prior_xyz_edge(g2o::VertexSE3* v_se3, const Eigen::Vector3d& xyz, const Eigen::MatrixXd& information_matrix);
+        void addVertexToGraph(Eigen::Vector3f &pose_to_add, double pose_time);
 
-            /**
-             * @brief perform graph optimization
-             */
-            void optimize();
+        void addEdgeToGraph(Eigen::Matrix4f transform_between_vertexes,
+                            Id id1, Id id2);
 
-            /**
-             * @brief save the pose graph
-             * @param filename  output filename
-             */
-            void save(const std::string& filename);
+//    void addLoopClosureToGraph(Eigen::Matrix4f transform_for_loop,
+//                               Id id1, Id id2);
 
-        public:
-            std::unique_ptr<g2o::SparseOptimizer> graph;  // g2o graph
-            g2o::VertexPlane* floor_plane_node;           // ground floor plane node
-        };
+        std::unordered_map <Id, Eigen::Vector3f> updateGraph();
 
+    private:
+        g2o::SparseOptimizer trajectory_optimizer_;
+        ///std::unordered_map<Id, Eigen::Vector3f> pose_sequence_;
+        int vertex_id = 1;
+        std::vector <Id> Id_list_;
+        std::unordered_map<Id, Eigen::Vector3f> pose_sequence_;
+    };
     }
 
 #endif //PROJECT_GRAPHSLAM_H

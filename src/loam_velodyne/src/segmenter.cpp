@@ -25,7 +25,7 @@ float Segmenter::compute_dist_between_centroid(segment seg1, segment seg2) {
     return dist;
 }
 
-void Segmenter::filterInputCloud() {
+pcl::PointCloud<pcl::PointXYZI> Segmenter::filterInputCloud() {
 
     std::cout << "Start the filter part" << std::endl;
 
@@ -46,6 +46,8 @@ void Segmenter::filterInputCloud() {
             }
         }
     }
+    ///Radius and height filters to limit the amount of the processing points
+
     pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud_ptr
             (new pcl::PointCloud<pcl::PointXYZI>(*filtered_cloud_));
 
@@ -53,6 +55,8 @@ void Segmenter::filterInputCloud() {
     outrem_.setRadiusSearch(outlier_removal_radius_);
     outrem_.setMinNeighborsInRadius (outlier_removal_min_neighbour_);
     outrem_.filter (*filtered_cloud_);//执行条件滤波,在半径为0.5在此半径内必须要有30个邻居点，此点才会保存
+
+    return *filtered_cloud_;
 }
 //TODO: Simplify the filter part cause the floor detection part has produced a good filter cloud
 
@@ -216,8 +220,7 @@ bool Segmenter::filter_nearest_segment(segment segment_to_add){
         std::vector<float> nearest_dist;
 
         if(centroids_tree_.radiusSearch(centroid_cloud_, centroid_nearest,
-                                        nearest_dist, max_dist_filter_segment_) >= 1){
-
+                                        nearest_dist, max_dist_filter_segment_) != 0){
 
         }else{
             centroid_cloud_->push_back(centroid_to_add);
