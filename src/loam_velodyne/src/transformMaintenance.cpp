@@ -57,6 +57,7 @@ namespace LxSlam {
     Odometry odom;
     Segmenter segmenter;
     graphOptmizer graph;
+    double time_stamp;
 
     ros::Publisher *pubLaserOdometry2Pointer = NULL;
     ros::Publisher *seg_points_pub = NULL;
@@ -275,6 +276,8 @@ namespace LxSlam {
         laserOdometry2.pose.pose.position.z = transformMapped[5];
         pubLaserOdometry2Pointer->publish(laserOdometry2);
 
+        time_stamp = laserOdometry->header.stamp.sec;
+
 /*************************************************************************************************************************/
 
         auto cloud_iter = cloud_to_match.begin();
@@ -290,7 +293,8 @@ namespace LxSlam {
 
                 odom.MergeSensorData(Imu_msg, obd_msg, diff_time);
                 odom.setMea(mea_pose);
-                Eigen::Matrix4f ekf_pose = odom.get_ekf_pose();
+                Eigen::Matrix4f ekf_pose_mat = odom.get_ekf_pose();
+                Eigen::Vector3d ekf_pose;
 
                 pcl::PointCloud<pcl::PointXYZI> cloud_to_save;
                 pcl::fromROSMsg(*cloud_iter, cloud_to_save);
@@ -298,10 +302,23 @@ namespace LxSlam {
                 pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered_ptr(new pcl::PointCloud<pcl::PointXYZI>());
 
                 ///Eigen::Matrix4f transform = pose_to_matrix(ekf_pose[0], ekf_pose[1], 0, 0, 0, ekf_pose[2]);
-                Eigen::Matrix4f transform = ekf_pose;
+//                Eigen::Matrix4f transform = ekf_pose_mat;
+                double roll,pitch,yaw;
+                matrix_to_pose(ekf_pose_mat, ekf_pose[0], ekf_pose[1], ekf_pose[2], roll, pitch, yaw);
+
+                if(frame_id == 1){
+                    graph.init();
+                }else{
+                    Id id1,id2;
+                    id1.counter = frame_id - 1;
+                    id2.counter = frame_id;
+                    id1.time_ns = id2.time_ns = time_stamp;
+                    graph.addVertexToGraph(ekf_pose, time_stamp);
+                    graph.addEdgeToGraph(ekf_pose_mat, id1, id2);
+                }
                 ///对应方式不是上面的getQuat函数里面的对应关系
                 pcl::PointCloud<pcl::PointXYZI> cloud_to_add;
-                pcl::transformPointCloud(cloud_to_save, cloud_to_add, transform);///这里是先累加再进行滤波操作
+                pcl::transformPointCloud(cloud_to_save, cloud_to_add, ekf_pose_mat);///这里是先累加再进行滤波操作
 
                 if (0.2 < std::hypotf(fabs(transformMapped[3] - transformMappedLast[3]),
                                       fabs(transformMapped[4] - transformMappedLast[4])) < dist_to_build_local_map ||

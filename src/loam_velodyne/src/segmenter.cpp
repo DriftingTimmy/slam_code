@@ -200,7 +200,7 @@ void Segmenter::add_segment_to_map(segment& valid_segment){
     }
 }
 
-void Segmenter::find_segment_candidates() {
+bool Segmenter::find_segment_candidates() {
 
 }
 

@@ -40,6 +40,9 @@ public:
 
     void segCloud(){};
 
+    bool find_segment_candidates(){};
+
+
 private:
     const int euclidean_cluster_MinClusterSize_     = 300;//min_size is 100 if defalt
     const int euclidean_cluster_MaxClusterSize_     = 15000;//max_size is 15000 if default
@@ -54,7 +57,6 @@ private:
     void describe(segment& segmented_cloud){};
     void add_segment_to_map(segment& valid_segment){};
     float compute_dist_between_centroid(segment seg1, segment seg2){};
-    void find_segment_candidates(){};
     bool filter_nearest_segment(segment segment_to_add){};
     void descriptors_match(){};
     void compare_segment(){};
