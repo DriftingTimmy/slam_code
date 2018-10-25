@@ -709,7 +709,7 @@ int main(int argc, char** argv)
   ros::Subscriber subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2> 
                                   ("/rslidar_points", 2, laserCloudHandler);
 
-  ros::Subscriber subImu = nh.subscribe<sensor_msgs::Imu> ("/imu", 50, imuHandler);
+  ros::Subscriber subImu = nh.subscribe<sensor_msgs::Imu> ("/imu_useless", 50, imuHandler);
 
     pubCornerPointsSharp = nh.advertise<sensor_msgs::PointCloud2>
             ("/laser_cloud_less_sharp", 2);

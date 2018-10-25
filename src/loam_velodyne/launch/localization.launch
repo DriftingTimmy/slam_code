@@ -7,6 +7,7 @@
   <node pkg="loam_velodyne" type="segmentMatching" name="segmentMatching" output="screen"/>
   <node pkg="loam_velodyne" type="odometryMaintenance" name="odometryMaintenance" output="screen"/>
   <node pkg="loam_velodyne" type="poseEstimateImu" name="poseEstimateImu" output="screen" respawn="true">
+    <node pkg="loam_velodyne" type="transformMaintenance" name="transformMaintenance" output="screen"/>
 
   </node>
 

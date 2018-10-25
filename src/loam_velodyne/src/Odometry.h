@@ -6,6 +6,9 @@
 #define PROJECT_ODOMETRY_H
 
 #include <Eigen/Eigen>
+#include <Eigen/Core>
+#include <Eigen/Cholesky>
+#include <Eigen/Eigenvalues>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <visualization_msgs/Marker.h>
@@ -20,56 +23,56 @@
 #include <pcl/sample_consensus/sac_model_plane.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <common_function.h>
+namespace LxSlam {
+    class Odometry {
+    public:
+        void MergeSensorData(sensor_msgs::Imu imu_data,
+                             nav_msgs::Odometry vel_data,
+                             double diff_time);
 
-namespace LxSlam{
+        Eigen::Matrix4f get_ekf_pose() {
+            pose_ekf_mat = tf_to_global_ekf();
+            return pose_ekf_mat;
+        };
 
-class Odometry {
-public:
-    void MergeSensorData(sensor_msgs::Imu imu_data,
-                         nav_msgs::Odometry vel_data,
-                         double diff_time){};
+//        Eigen::Vector3d get_XYYaw_from_odom(nav_msgs::Odometry laser_odom);
+//
+//        nav_msgs::Odometry get_odom_from_pose(Eigen::Vector3d trans_pose);
 
-    Eigen::Matrix4f get_ekf_pose(){
-        tf_to_global_ekf();
-        return pose_ekf_;};
-
-    Eigen::Vector3d get_XYYaw_from_odom(nav_msgs::Odometry laser_odom){};
-
-    nav_msgs::Odometry get_odom_from_pose(Eigen::Vector3d trans_pose){};
-
-    void setMea(Eigen::Vector3d mea_pose){};
+        void setMea(Eigen::Vector3f mea_pose) { measure_pose_ = mea_pose; };
 
 //    void set_tf_pre(Eigen::Matrix4f tf_pre){ tf_prediction_ = tf_pre; };
 //    void set_tf_mea(Eigen::Matrix4f tf_mea) {
 //        tf_measurement_ = tf_mea; };//set loam output as the measurement tf
 
-private:
+    private:
 
-    Eigen::Matrix4f tf_to_global_ekf(){};
-    void update_path(){};
-    void add_pose_to_path(){};
+        Eigen::Matrix4f tf_to_global_ekf();
 
-    Eigen::Vector3d pose_ekf_;
-    Eigen::Vector3d predict_pose_;
-    Eigen::Vector3d measure_pose_;
-    nav_msgs::Path  odometry_path_;
+//        void update_path();
+//
+//        void add_pose_to_path();
 
-    float last_vel_;
-    geometry_msgs::Quaternion last_q_;
-    Eigen::Vector3d inc_distance_car;
-    double inc_distance;
-    double diff_time;
-    double diff_theta;
+        Eigen::Matrix4f pose_ekf_mat;
+        Eigen::Vector3f pose_ekf_ = {0, 0, 0};
+        Eigen::Vector3f predict_pose_= {0, 0, 0};
+        Eigen::Vector3f measure_pose_= {0, 0, 0};
+//        nav_msgs::Path odometry_path_;
 
-    Eigen::Matrix3f Af;
-    Eigen::Matrix3f Q;
-    Eigen::Matrix3f R;                      //一次卡尔曼测量协方差矩阵
-    Eigen::Matrix3f pred_true_Covariance;   //一次卡尔曼预测值与真实值之间的协方差矩阵
-    Eigen::Matrix3f esti_true_Covariance;   // 1次卡尔曼测量值与真实值之前的协方差矩阵
-    Eigen::Matrix3f k_filter;               //一次卡尔曼系数矩阵
-    ///EKF Matrix params
-};
+        float last_vel_;
+        geometry_msgs::Quaternion last_q_;
+        Eigen::Vector3f inc_distance_car;
+        double inc_distance;
+        double diff_time;
+        double diff_theta;
 
-}///namespace LxSlam
-
+        Eigen::Matrix3f Af;
+        Eigen::Matrix3f Q;
+        Eigen::Matrix3f R;                      //一次卡尔曼测量协方差矩阵
+        Eigen::Matrix3f pred_true_Covariance;   //一次卡尔曼预测值与真实值之间的协方差矩阵
+        Eigen::Matrix3f esti_true_Covariance;   // 1次卡尔曼测量值与真实值之前的协方差矩阵
+        Eigen::Matrix3f k_filter;               //一次卡尔曼系数矩阵
+        ///EKF Matrix params
+    };
+}
 #endif //PROJECT_ODOMETRY_H

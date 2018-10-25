@@ -6,14 +6,13 @@
 #define PROJECT_SEGMENTER_H
 
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/filters/extract_indices.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <ros/ros.h>
-
-namespace LxSlam{
 
 class Segmenter {
 
@@ -26,21 +25,21 @@ public:
         double time_stamp;
         double eigen_value_feature[7] = {0};
         Eigen::Vector3f pose;
-        pcl::PointCloud<pcl::PointXYZI> segcloud;
+        pcl::PointCloud<pcl::PointXYZ> segcloud;
     };
 
-    struct Segfactor{
-        double  segment_descriptor[7] = {0};
-        float   segment_centroid[3]   = {0};
-    };
+//    struct Segfactor{
+//        double  segment_descriptor[7] = {0};
+//        float   segment_centroid[3]   = {0};
+//    };
 
     void setInputCloud(pcl::PointCloud<pcl::PointXYZI> cloud){ *input_cloud_ = cloud; };
 
-    pcl::PointCloud<pcl::PointXYZI> filterInputCloud(){};
+    pcl::PointCloud<pcl::PointXYZI> filterInputCloud();
 
-    void segCloud(){};
+    void segCloud();
 
-    bool find_segment_candidates(){};
+    bool find_segment_candidates();
 
 
 private:
@@ -54,28 +53,26 @@ private:
 
     const float max_dist_filter_segment_            = 0.3;
 
-    void describe(segment& segmented_cloud){};
-    void add_segment_to_map(segment& valid_segment){};
-    float compute_dist_between_centroid(segment seg1, segment seg2){};
-    bool filter_nearest_segment(segment segment_to_add){};
-    void descriptors_match(){};
-    void compare_segment(){};
+//    void describe(segment& segmented_cloud);
+//    void add_segment_to_map(segment& valid_segment);
+    float compute_dist_between_centroid(segment seg1, segment seg2);
+    bool filter_nearest_segment(segment segment_to_add);
+//    void descriptors_match();
+//    void compare_segment();
 
     int segment_id_ = 0;
     pcl::VoxelGrid<pcl::PointXYZI> voxel_filter_;
     pcl::RadiusOutlierRemoval<pcl::PointXYZI> outrem_;
-    pcl::EuclideanClusterExtraction<pcl::PointXYZI> euclidean_cluster_extractor_;
+    pcl::EuclideanClusterExtraction<pcl::PointXYZ> euclidean_cluster_extractor_;
 
-    std::shared_ptr<pcl::PointCloud<pcl::PointXYZI>> input_cloud_;
-    std::shared_ptr<pcl::PointCloud<pcl::PointXYZI>> filtered_cloud_;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr input_cloud_;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud_;
 
-    std::vector<std::shared_ptr<Segfactor>> segment_descriptor_map_;
+//    std::vector<std::shared_ptr<Segfactor>> segment_descriptor_map_;
     std::vector<std::shared_ptr<segment>> segment_map_;
     std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> centroid_cloud_;
     pcl::KdTreeFLANN<pcl::PointXYZ> centroids_tree_;
 
 };
-
-}///namespace LxSlam
 
 #endif //PROJECT_SEGMENTER_H
