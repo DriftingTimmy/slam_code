@@ -50,18 +50,20 @@ using namespace std;
     ///New version of the modified part, including different classes;
     double cur_time = 0, cur_vel = 0, cur_theta = 0;
     double last_time = 0, last_vel = 0, last_theta = 0;
-    const float dist_to_build_local_map = 8;
+    const float dist_to_build_local_map = 3;
     nav_msgs::Odometry obd_msg;
     sensor_msgs::Imu Imu_msg;
 
     static bool IsSetInitalImu = false;
+    static bool time_init = false;
     static double init_theta = 0;
     ///OdomPart
     static Eigen::Matrix4f pose_ekf_mat;
     static Eigen::Vector3f pose_ekf_;
     static Eigen::Vector3f predict_pose_;
     static Eigen::Vector3f measure_pose_;
-    //        nav_msgs::Path odometry_path_;
+
+//        nav_msgs::Path odometry_path_;
 
     static float last_vel_;
 //    static geometry_msgs::Quaternion last_q_;
@@ -82,11 +84,11 @@ using namespace std;
 
     ///Feature Extract Part
     cv::Mat grid, grid_2, grid_3, temp_1, temp_2;
-    double gWidth, gHeight;
-    double miniGrid;
-    int gridW, gridH;
-    float clip_min_height, clip_max_height;
-    float clip_min_height_2, clip_max_height_2;
+    double gWidth = 60, gHeight = 60;
+    const float miniGrid = 0.15;
+    const int gridW = 400, gridH = 400;
+    const float clip_min_height = -1.3 , clip_max_height = 0.5;
+    const float clip_min_height_2 = 0.5, clip_max_height_2 = 1.5;
 
     int dilation_size;
     std::vector<float> feature;     // 30=1+6+3+20
@@ -107,13 +109,11 @@ using namespace std;
 
     ///Feature Extract Part
 
-//    LxSlam::Odometry odom;
-//    graphOptmizer graph;
     double time_stamp;
 
     ros::Publisher *pubLaserOdometry2Pointer = NULL;
     ros::Publisher *seg_points_pub = NULL;
-    ros::Publisher *segment_pub = NULL;
+    ros::Publisher *poles_pub = NULL;
     tf::TransformBroadcaster *tfBroadcaster2Pointer = NULL;
     tf::TransformBroadcaster *tf_seg = NULL;
     nav_msgs::Odometry laserOdometry2;
@@ -178,9 +178,12 @@ using namespace std;
         inc_distance_car << inc_distance * cos(diff_theta / 2.),
                 inc_distance * sin(diff_theta / 2.), diff_theta;
 
+        if(!IsSetInitalImu){
+            last_theta = 0;
+        }
         Eigen::Matrix3f car_rotate;
-        car_rotate<< cosf(pose_ekf_[2]), -sinf(pose_ekf_[2]), 0,
-                sinf(pose_ekf_[2]),  cosf(pose_ekf_[2]), 0,
+        car_rotate<< cosf(last_theta), -sinf(last_theta), 0,
+                sinf(last_theta),  cosf(last_theta), 0,
                 0, 0, 1;
 
         Eigen::Vector3f inc_distance_global;
@@ -188,14 +191,13 @@ using namespace std;
 
         predict_pose_ = pose_ekf_ + inc_distance_global;
 
-        std::cout << "inc_car :  "<< inc_distance_car << std::endl;
+        std::cout << "inc_car :  "<< inc_distance_global << std::endl;
 //        std::cout << "predict pose :  "<< predict_pose_ << std::endl;
         std::cout << "mea pose : " << measure_pose_ << std::endl;
         std::cout << "ekf pose :  "<< pose_ekf_ << std::endl;
 
 //        last_q_ = cur_q;
         if(!IsSetInitalImu){
-            last_theta = 0;
             IsSetInitalImu = true;
         }else{
             last_theta = cur_theta;
@@ -267,6 +269,7 @@ bool check_translation() {
 
 void icvprCcaBySeedFill(const cv::Mat& _binImg, cv::Mat& _lableImg)
 {
+//    std::cout << "Start icvpr part!" << std::endl;
     if (_binImg.empty() || _binImg.type() != CV_8UC1)
     {
         return;
@@ -337,12 +340,20 @@ void icvprCcaBySeedFill(const cv::Mat& _binImg, cv::Mat& _lableImg)
 
 cv::Point2i trans(cv::Point2f pt)
 {
-    return cv::Point2i(int(pt.x / 0.15) + 100 / 2, int(pt.y / 0.15) + 100 / 2);
+    cv::Point2i point;
+    point.x = int((pt.x / miniGrid) + gridW / 2);
+    point.y = int((pt.y / miniGrid) + gridH / 2);
+
+//    std::cout << "Start trans part !  :" << point << std::endl;
+
+    return  point;
 }
 
 void clipCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr,
                pcl::PointCloud<pcl::PointXYZI>::Ptr out_cloud_ptr, float in_min_height, float in_max_height)
 {
+//    std::cout << "Start z pass part!" << std::endl;
+
     pcl::PassThrough<pcl::PointXYZI> pass;               //设置滤波器对象
     pass.setInputCloud(in_cloud_ptr);                    //设置输入点云
     pass.setFilterFieldName("z");                        //设置过滤时所需要点云类型的z字段
@@ -352,6 +363,8 @@ void clipCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr,
 
 void genGrid(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, cv::Mat& mat)
 {
+//    std::cout << "Start gengrid part!" << std::endl;
+
     mat.setTo(0);
     for (int i = 0; i < in_cloud_ptr->size(); ++i)
     {
@@ -367,6 +380,8 @@ void genGrid(const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, cv::Mat& m
 
 void extractTree(const cv::Mat label, cv::Mat& mat)
 {
+//    std::cout << "Start extract tree part!" << std::endl;
+
     double min, max;
     minMaxIdx(label, &min, &max);
     std::vector<int> labelnum;
@@ -392,6 +407,8 @@ void extractTree(const cv::Mat label, cv::Mat& mat)
 
 void matormat(const cv::Mat temp1, const cv::Mat temp2, cv::Mat& temp3)
 {
+//    std::cout << "Start Matrix part!" << std::endl;
+
     temp3.setTo(0);
     for (int i = 0; i < temp1.rows; ++i)
     {
@@ -401,10 +418,12 @@ void matormat(const cv::Mat temp1, const cv::Mat temp2, cv::Mat& temp3)
                 temp3.at<uchar>(i, j) = 1;
         }
     }
-}
+}///两个矩阵标记位相加得到对应的融合标记位矩阵可以得到整体的占有栅格投影
 
-void features(const pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_)
+void features(const pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_, float min_z, float max_z)
 {
+//    std::cout << "Start feature part!" << std::endl;
+
     //点数
     Pointnum.resize(1, 0);
     Pointnum[0] = cloud_->points.size();
@@ -449,15 +468,15 @@ void features(const pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_)
     }
     cov_scalar = cov_max / cov_min;
     //切片
-    float min_z = 100;
-    float max_z = -100;
-    for (int i = 0; i < cloud_->points.size(); i++)
-    {
-        if (cloud_->points[i].z < min_z)
-            min_z = cloud_->points[i].z;
-        if (cloud_->points[i].z > max_z)
-            max_z = cloud_->points[i].z;
-    }
+//    float min_z = 100;
+//    float max_z = -100;
+//    for (int i = 0; i < cloud_->points.size(); i++)
+//    {
+//        if (cloud_->points[i].z < min_z)
+//            min_z = cloud_->points[i].z;
+//        if (cloud_->points[i].z > max_z)
+//            max_z = cloud_->points[i].z;
+//    }
 
     int sliceNum = 7;
     Slice_mat.resize(sliceNum * 2, 0);
@@ -503,6 +522,8 @@ void features(const pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_)
 void genClusters2(const cv::Mat label, const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr,
                               std::vector<poleslabel>& poles)
 {
+//    std::cout << "Start genCluster part!" << std::endl;
+
     double min, max;
     minMaxIdx(label, &min, &max);
     std::vector<pcl::PointCloud<pcl::PointXYZI> > tmpPCDs;
@@ -565,7 +586,7 @@ void genClusters2(const cv::Mat label, const pcl::PointCloud<pcl::PointXYZI>::Pt
         //********利用判定来识别柱子
         if ((z_max - z_min) < 1.5)
             continue;
-        features(cloud_);
+        features(cloud_, z_min, z_max);
         if (countPoints > 1)
             continue;
         //        std::cout<<"\033[32m the cov_scalar is \033[0m"<<cov_scalar<<"the scalar of points
@@ -589,23 +610,28 @@ void genClusters2(const cv::Mat label, const pcl::PointCloud<pcl::PointXYZI>::Pt
     }
 }
 
-bool ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
-                  float cluster_centroids[3],
+void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
                   pcl::PointCloud<pcl::PointXYZI>::Ptr poles_position){
-//    #if DEBUG_POLES_EXT
-//    displayer2->publishPoints(pub_points, cloud, ros::Time::now());  // msg.header.stamp);
-//    #endif
-    float point_begin_x = 0;
-    float point_begin_y = 0;
-    for (int i = 0; i < 16; ++i)
-    {
-        if (powf(cloud.points.at(i * cloud.width).x, 2) + powf(cloud.points.at(i * cloud.width).y, 2) > 0.1)
-        {
-            point_begin_x = cloud.points.at(i * cloud.width).x;
-            point_begin_y = cloud.points.at(i * cloud.width).y;
-            break;
-        }
-    }
+
+//    float point_begin_x = 0;
+//    float point_begin_y = 0;
+//    for (int i = 0; i < 16; ++i)
+//    {
+//        if (powf(cloud.points.at(i * cloud.width).x, 2) + powf(cloud.points.at(i * cloud.width).y, 2) > 0.1)
+//        {
+//            point_begin_x = cloud.points.at(i * cloud.width).x;
+//            point_begin_y = cloud.points.at(i * cloud.width).y;
+//            break;
+//        }
+//    }
+    grid = cv::Mat::zeros(gridH, gridW, CV_8UC1);
+    grid_2 = cv::Mat::zeros(gridH, gridW, CV_8UC1);
+    grid_3 = cv::Mat::zeros(gridH, gridW, CV_8UC1);
+
+    temp_1 = cv::Mat::zeros(gridH, gridW, CV_8UC1);
+    temp_2 = cv::Mat::zeros(gridH, gridW, CV_8UC1);
+
+//    std::cout << "Start Extract Poles part!" << std::endl;
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr clipped_cloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointXYZI>::Ptr clipped_cloud_ptr_2(new pcl::PointCloud<pcl::PointXYZI>);
@@ -770,7 +796,7 @@ bool ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
         geometry_msgs::Quaternion geoQuat = laserOdometry->pose.pose.orientation;
         tf::Matrix3x3(tf::Quaternion(geoQuat.z, -geoQuat.x, -geoQuat.y, geoQuat.w)).getRPY(roll, pitch, yaw);
 
-        cur_time = laserOdometry->header.stamp.toSec();
+//        cur_time = laserOdometry->header.stamp.toSec();
 
         transformSum[0] = -pitch;
         transformSum[1] = -yaw;
@@ -792,185 +818,191 @@ bool ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
             if (check_time == 0 && !cloud_iter->data.empty() && check_translation()) {
 
                 ///Begin the odom EKF part to get the ekf pose here;
-                double diff_time = cur_time - last_time;
-//                std::cout << "transform pose :  "<< transformMapped[0] << " " << transformMapped[1] << " "
-//                        << transformMapped[2] << " " << transformMapped[3] << " " << transformMapped[4] << " "
-//                        << transformMapped[5] << " " << std::endl;
-//                Eigen::Vector3f mea_pose = {transformMapped[3], transformMapped[4], -transformMapped[1]};
-//
-//                setMea(mea_pose);
-////                std::cout <<"Begin the EKF part"<< std::endl;
-//
-//                MergeSensorData(Imu_msg, obd_msg, diff_time);
-//                Eigen::Matrix4f ekf_pose_mat = get_ekf_pose();
-//                Eigen::Vector3d ekf_pose;
 
                 pcl::PointCloud<pcl::PointXYZI> cloud_to_save;
                 pcl::fromROSMsg(*cloud_iter, cloud_to_save);
 
-                ///Eigen::Matrix4f transform = pose_to_matrix(ekf_pose[0], ekf_pose[1], 0, 0, 0, ekf_pose[2]);
-//                double roll_,pitch_,z,x,y,yaw_;
-//                matrix_to_pose(ekf_pose_mat, x, y, z, roll_, pitch_, yaw_);
+                /**********************************Single Frame Extraction!!!!*************************************/
+
 //
-//                transformMapped[3] = (float)x;
-//                transformMapped[4] = (float)y;
-//                transformMapped[1] = -(float)yaw_;
+//                pcl::PointCloud<pcl::PointXYZI>::Ptr poles_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+//                ExtractPoles(cloud_to_save, poles_cloud);
+//
+//                poles_cloud->header.frame_id = "/rslidar";
+//                poles_cloud->header.stamp = cur_time;
+//
+//                sensor_msgs::PointCloud2 poles_pub_msg;
+//                pcl::toROSMsg(*poles_cloud,poles_pub_msg);
+//
+//                poles_pub->publish(poles_pub_msg);
+                /**********************************Single Frame Extraction!!!!*************************************/
 
-                std::cout << "Output the ekf pose x:"<<transformMapped[3]
-                          << "  y: " << transformMapped[4] << std::endl;
 
-//                if(frame_id == 1){
-//                    graph.init();
-//                }else{
-//                    Id id1,id2;
-//                    id1.counter = frame_id - 1;
-//                    id2.counter = frame_id;
-//                    id1.time_ns = id2.time_ns = time_stamp;
-//                    graph.addVertexToGraph(ekf_pose, time_stamp);
-//                    graph.addEdgeToGraph(ekf_pose_mat, id1, id2);
+                /**********************************EKF odometry part with IMU and OBD!!!!*************************************/
+//                std::cout << "transform pose :  "<< transformMapped[0] << " " << transformMapped[1] << " "
+//                        << transformMapped[2] << " " << transformMapped[3] << " " << transformMapped[4] << " "
+//                        << transformMapped[5] << " " << std::endl;
+
+//                if(aft_mapped_pose_updated){
+//
+//                    double diff_time = cur_time - last_time;
+//
+//                    Eigen::Vector3f mea_pose = {transformMapped[3], transformMapped[4], -transformMapped[1]};
+//
+//                    setMea(mea_pose);
+////                std::cout <<"Begin the EKF part"<< std::endl;
+//
+//                    MergeSensorData(Imu_msg, obd_msg, diff_time);
+//                    Eigen::Matrix4f ekf_pose_mat = get_ekf_pose();
+//                    Eigen::Vector3d ekf_pose;
+//
+//                    transform = pose_to_matrix(ekf_pose[0], ekf_pose[1], 0, 0, 0, ekf_pose[2]);
+//                    double roll_,pitch_,z,x,y,yaw_;
+//                    matrix_to_pose(ekf_pose_mat, x, y, z, roll_, pitch_, yaw_);
+//
+//                    transformMapped[3] = (float)x;
+//                    transformMapped[4] = (float)y;
+//                    transformMapped[2] = (float)yaw_;
+//
+//                    std::cout << "Output the ekf pose x:"<<transformMapped[3]
+//                              << "  y: " << transformMapped[4] << std::endl;
+//
+//                    aft_mapped_pose_updated = false;
+//                    last_time = cur_time;
+//                    last_vel = cur_vel;
 //                }
-                ///对应方式不是上面的getQuat函数里面的对应关系
+
+                /************************EKF odometry part with IMU and OBD!!!! - END***************************/
+
+                pcl::PointCloud<pcl::PointXYZI> cloud_to_save_filtered;
+                for (pcl::PointXYZI point : cloud_to_save.points) {
+                    if (point.z  > -1.7 && point.z  < 2.5) {
+                        if (std::hypotf(point.x , point.y < 30)) {
+                            cloud_to_save_filtered.push_back(point);
+                        }
+                    }
+                }
 
                 Eigen::Matrix4f transform = pose_to_matrix(transformMapped[3],transformMapped[4],transformMapped[5],
-                                                           transformMapped[1],-transformMapped[0],transformMapped[2]);
+                                                           -transformMapped[1],-transformMapped[0],transformMapped[2]);
                 ///记住上面的对应关系！！！！！！！很重要！！！！！！！
 
-                pcl::PointCloud<pcl::PointXYZI> cloud_to_add;
-                pcl::transformPointCloud(cloud_to_save, cloud_to_add, transform);///这里是先累加再进行滤波操作
+                pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_to_add(new pcl::PointCloud<pcl::PointXYZI>());
+                pcl::transformPointCloud(cloud_to_save_filtered, *cloud_to_add, transform);///这里是先累加再进行滤波操作
+
+                pcl::VoxelGrid<pcl::PointXYZI> voxel_filter_;
+                pcl::RadiusOutlierRemoval<pcl::PointXYZI> outrem_;
+                pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_to_filter_ptr
+                        (new pcl::PointCloud<pcl::PointXYZI>());
+
+                *cloud_to_filter_ptr = cloud_for_cluster;
+//                    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered_ptr
+//                            (new pcl::PointCloud<pcl::PointXYZI>());
+
+                pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered_ptr
+                        (new pcl::PointCloud<pcl::PointXYZI>());
+                pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud_
+                        (new pcl::PointCloud<pcl::PointXYZI>());
+
+                voxel_filter_.setInputCloud(cloud_to_add);
+                voxel_filter_.setLeafSize(0.15, 0.15, 0.15);
+                voxel_filter_.filter(*cloud_filtered_ptr);
+
+                filtered_cloud_ = cloud_filtered_ptr;
+                ///Radius and height filters to limit the amount of the processing points
+
+                outrem_.setInputCloud(filtered_cloud_);
+                outrem_.setRadiusSearch(0.5);
+                outrem_.setMinNeighborsInRadius(5);
+                outrem_.filter(*filtered_cloud_);
+
+                std::cout<< "size of filter cloud : " << filtered_cloud_->points.size() << std::endl;
 
                 float dist_between_last_trans = std::hypotf(fabs(transformMapped[3] - transformMappedLast[3]),
                                                             fabs(transformMapped[4] - transformMappedLast[4]));
                 if (dist_between_last_trans < dist_to_build_local_map ) {
                     std::cout<< "add fucking map "<< dist_between_last_trans << std::endl;
-                    cloud_for_cluster += cloud_to_add;
+//                    cloud_for_cluster += cloud_to_add;
+                    cloud_for_cluster += *filtered_cloud_;
+
                     break;
                 }///Add several frames together to make the clusters' pointcloud dense.
                 else {
-                    ///SaveToPCD(cloud_to_save , frame_id);
-
-                    ///save the pose of the single frame
 //                    *cloud_filtered_ptr = cloud_for_cluster;
 
                     /******************************segment************************************/
 
-                    std::cout << "Start the voxel filter part" << std::endl;
-
-                    pcl::VoxelGrid<pcl::PointXYZI> voxel_filter_;
-                    pcl::RadiusOutlierRemoval<pcl::PointXYZI> outrem_;
-                    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_to_filter_ptr
-                            (new pcl::PointCloud<pcl::PointXYZI>());
-
-                    *cloud_to_filter_ptr = cloud_for_cluster;
-//                    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered_ptr
-//                            (new pcl::PointCloud<pcl::PointXYZI>());
-
-                    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered_ptr
-                            (new pcl::PointCloud<pcl::PointXYZI>());
-                    pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud_
-                            (new pcl::PointCloud<pcl::PointXYZI>());
-
-                    voxel_filter_.setInputCloud(cloud_to_filter_ptr);
-                    voxel_filter_.setLeafSize(0.2, 0.2, 0.2);
-                    voxel_filter_.filter(*cloud_filtered_ptr);
-                    std::cout << "Start the dist filter part" << std::endl;
-                    std::cout<< "size of filter cloud : " << cloud_filtered_ptr->points.size() << std::endl;
-
-                    for (pcl::PointXYZI point : cloud_filtered_ptr->points) {
-                        if ((point.z - transformMapped[5]) > -1.7 &&
-                            (point.z - transformMapped[5]) < 4.0) {
-                            if (std::hypotf((point.x - transformMapped[3]), (point.y - transformMapped[4]) < 30)) {
-                                filtered_cloud_->push_back(point);
-                            }
-                        }
-                    }
-                    ///Radius and height filters to limit the amount of the processing points
-
-//                    std::cout << "Dist filter cloud size : " << filtered_cloud_->size() << std::endl;
+//                    std::cout << "Seg the cloud now" << std::endl;
 //
-//                    std::cout << "the size of segcloud is : " << filtered_cloud_->size() << std::endl;
-//                    filtered_cloud_->header.frame_id = "/camera_init";
-//                    filtered_cloud_->header.stamp = cur_time;
-
-//                    sensor_msgs::PointCloud2 seg_cloud_msg;
-//                    pcl::toROSMsg(*filtered_cloud_,seg_cloud_msg);
-//                    seg_points_pub->publish(seg_cloud_msg);
-
-                    outrem_.setInputCloud(filtered_cloud_);
-                    outrem_.setRadiusSearch(0.5);
-                    outrem_.setMinNeighborsInRadius(30);
-                    outrem_.filter(*filtered_cloud_);
-//                    pcl::PointCloud<pcl::PointXYZI> segment_filter_cloud;
-//                    segment_filter_cloud = segmenter.filterInputCloud();
-
-
-                    std::cout << "Seg the cloud now" << std::endl;
-
-                    pcl::EuclideanClusterExtraction<pcl::PointXYZ> euclidean_cluster_extractor_;
-
-                    std::vector<pcl::PointIndices> cluster_indices;
-                    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud_seg_ptr
-                            (new pcl::PointCloud<pcl::PointXYZ>());
-
-                    pcl::copyPointCloud(*filtered_cloud_, *filtered_cloud_seg_ptr);
-
-                    pcl::search::KdTree<pcl::PointXYZ>::Ptr kd_tree
-                            (new pcl::search::KdTree<pcl::PointXYZ>());
-                    kd_tree->setInputCloud(filtered_cloud_seg_ptr);
-
-                    euclidean_cluster_extractor_.setClusterTolerance(0.3);
-                    euclidean_cluster_extractor_.setMinClusterSize(300);
-                    euclidean_cluster_extractor_.setMaxClusterSize(12000);
-                    euclidean_cluster_extractor_.setSearchMethod(kd_tree);
-
-                    euclidean_cluster_extractor_.setInputCloud(filtered_cloud_seg_ptr);
-                    euclidean_cluster_extractor_.extract(cluster_indices);
-
-                    std::cout << "the size of indicies : " << cluster_indices.size() << std::endl;
-                    int segment_id_ = 1;
-                    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZI>());
-                    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin();
-                      it != cluster_indices.end(); ++it) {
-                        pcl::PointCloud<pcl::PointXYZI> segmented_cluster;
-                        float x_all = 0;
-                        float y_all = 0;
-                        float z_all = 0;
-                        int size = 0;
-
-                        for (auto pit = it->indices.begin(); pit != it->indices.end(); pit++) {
-                            filtered_cloud_->points[*pit].intensity = segment_id_;
-                            cloud_cluster->points.push_back(filtered_cloud_->points[*pit]);
-                            segmented_cluster.push_back(filtered_cloud_->points[*pit]);
-                            x_all += filtered_cloud_->points[*pit].x;
-                            y_all += filtered_cloud_->points[*pit].y;
-                            z_all += filtered_cloud_->points[*pit].z;
-                            size++;
-                        }
-                        float centroid[3];
-                        centroid[0] = x_all / size;
-                        centroid[1] = y_all / size;
-                        centroid[2] = z_all / size;
-
-                        pcl::PointCloud<pcl::PointXYZI>::Ptr poles_pose(new pcl::PointCloud<pcl::PointXYZI>());
-                        ///Feature extraction part
-//                        if(ExtractPoles(segmented_cluster,centroid,poles_pose)){
+//                    pcl::EuclideanClusterExtraction<pcl::PointXYZ> euclidean_cluster_extractor_;
 //
+//                    std::vector<pcl::PointIndices> cluster_indices;
+//                    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud_seg_ptr
+//                            (new pcl::PointCloud<pcl::PointXYZ>());
+//
+////                    pcl::copyPointCloud(*filtered_cloud_, *filtered_cloud_seg_ptr);
+//                    pcl::copyPointCloud(cloud_for_cluster, *filtered_cloud_seg_ptr);
+//
+//                    pcl::search::KdTree<pcl::PointXYZ>::Ptr kd_tree
+//                            (new pcl::search::KdTree<pcl::PointXYZ>());
+//                    kd_tree->setInputCloud(filtered_cloud_seg_ptr);
+//
+//                    euclidean_cluster_extractor_.setClusterTolerance(0.4);
+//                    euclidean_cluster_extractor_.setMinClusterSize(200);
+//                    euclidean_cluster_extractor_.setMaxClusterSize(10000);
+//                    euclidean_cluster_extractor_.setSearchMethod(kd_tree);
+//
+//                    euclidean_cluster_extractor_.setInputCloud(filtered_cloud_seg_ptr);
+//                    euclidean_cluster_extractor_.extract(cluster_indices);
+//
+////                    std::cout << "the size of indicies : " << cluster_indices.size() << std::endl;
+//                    int segment_id_ = 1;
+//                    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZI>());
+//                    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin();
+//                      it != cluster_indices.end(); ++it) {
+//                        pcl::PointCloud<pcl::PointXYZI> segmented_cluster;
+//                        float x_all = 0;
+//                        float y_all = 0;
+//                        float z_all = 0;
+//                        int size = 0;
+//
+//                        for (auto pit = it->indices.begin(); pit != it->indices.end(); pit++) {
+//                            cloud_for_cluster.points[*pit].intensity = segment_id_;
+//                            cloud_cluster->points.push_back(cloud_for_cluster.points[*pit]);
+//                            segmented_cluster.push_back(cloud_for_cluster.points[*pit]);
+//                            x_all += cloud_for_cluster.points[*pit].x;
+//                            y_all += cloud_for_cluster.points[*pit].y;
+//                            z_all += cloud_for_cluster.points[*pit].z;
+//                            size++;
 //                        }
-                        ///Feature extraction part
-
-                        segment_id_++;
-                    }
-
-                    std::cout << "the size of segcloud is : " << cloud_cluster->size() << std::endl;
-                    cloud_cluster->header.frame_id = "/camera_init";
-                    cloud_cluster->header.stamp = cur_time;
-
-                    sensor_msgs::PointCloud2 seg_cloud_msg;
-                    pcl::toROSMsg(*cloud_cluster,seg_cloud_msg);
-                    seg_points_pub->publish(seg_cloud_msg);
+//                        float centroid[3];
+//                        centroid[0] = x_all / size;
+//                        centroid[1] = y_all / size;
+//                        centroid[2] = z_all / size;
+//
+//                        pcl::PointCloud<pcl::PointXYZI>::Ptr poles_pose(new pcl::PointCloud<pcl::PointXYZI>());
+//                        ///Feature extraction part
+////                        if(ExtractPoles(segmented_cluster,centroid,poles_pose)){
+////
+////                        }
+//                        ///Feature extraction part
+//
+//                        segment_id_++;
+//                    }
+//
+////                    std::cout << "the size of segcloud is : " << cloud_cluster->size() << std::endl;
+//                    cloud_cluster->header.frame_id = "/camera_init";
+//                    cloud_cluster->header.stamp = time_stamp;
+//
+//                    sensor_msgs::PointCloud2 seg_cloud_msg;
+//                    pcl::toROSMsg(*cloud_cluster,seg_cloud_msg);
+//                    seg_points_pub->publish(seg_cloud_msg);
 
                     /******************************segment************************************/
 
                     frame_id++;
+
+                    /******************************graph slam part************************************/
 
                     transformMappedLast[0] = transformMapped[0];
                     transformMappedLast[1] = transformMapped[1];
@@ -978,9 +1010,6 @@ bool ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
                     transformMappedLast[3] = transformMapped[3];
                     transformMappedLast[4] = transformMapped[4];
                     transformMappedLast[5] = transformMapped[5];
-
-                    last_time = cur_time;
-                    last_vel = cur_vel;
 
                     cloud_for_cluster.clear();
                     aft_mapped_pose_updated = false;
@@ -1011,8 +1040,6 @@ bool ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
         laserOdometryTrans2.setOrigin(tf::Vector3(transformMapped[3], transformMapped[4], transformMapped[5]));
         tfBroadcaster2Pointer->sendTransform(laserOdometryTrans2);
 
-        last_time = cur_time;
-
 /***********************************************************************************************************************/
     }
 
@@ -1023,15 +1050,15 @@ bool ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
 
     void imuCallback(sensor_msgs::Imu imu_msg) {
         geometry_msgs::Quaternion q = imu_msg.orientation;
-        cur_theta = -tf::getYaw(q);
+        cur_theta = tf::getYaw(q);//imu Z轴朝上
         Imu_msg = imu_msg;
-//        std::cout <<"Get the imu data here "<< std::endl;
+//        std::cout <<"Get the imu data here : "<< cur_theta << std::endl;
         if(!IsSetInitalImu){
             init_theta = cur_theta;
             last_theta = cur_theta;
-//        }else{
-//            cur_theta = cur_theta - init_theta;
-////            std::cout << "init theta : " << init_theta << std::endl;
+        }else{
+            cur_theta = cur_theta - init_theta;
+//            std::cout << "init theta : " << init_theta << std::endl;
         }
     }
 
@@ -1056,8 +1083,37 @@ bool ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
         transformBefMapped[4] = odomAftMapped->twist.twist.linear.y;
         transformBefMapped[5] = odomAftMapped->twist.twist.linear.z;
 
-        aft_mapped_pose_updated = true;
-    }
+        cur_time = odomAftMapped->header.stamp.toSec();
+        double diff_time = cur_time - last_time;
+        if(!time_init){
+            diff_time = 0;
+            time_init = true;
+        }
+
+        Eigen::Vector3f mea_pose = {transformAftMapped[3], transformAftMapped[4], transformAftMapped[2]};
+
+        setMea(mea_pose);
+//            std::cout <<"Begin the EKF part"<< std::endl;
+
+        MergeSensorData(Imu_msg, obd_msg, diff_time);
+        Eigen::Matrix4f ekf_pose_mat = get_ekf_pose();
+        Eigen::Vector3d ekf_pose;
+
+//        Eigen::Matrix4f transform_ekf = pose_to_matrix(ekf_pose[0], ekf_pose[1], 0, 0, 0, ekf_pose[2]);
+        double roll_,pitch_,z,x,y,yaw_;
+        matrix_to_pose(ekf_pose_mat, x, y, z, roll_, pitch_, yaw_);
+
+        transformAftMapped[3] = (float)x;
+        transformAftMapped[4] = (float)y;
+        transformAftMapped[2] = (float)yaw_;
+
+        std::cout << "Output the ekf pose x:"<<transformAftMapped[3]
+                  << "  y: " << transformAftMapped[4] << std::endl;
+
+        last_time = cur_time;
+        last_vel = cur_vel;
+
+        }
 
     void LocalLaserHandler(sensor_msgs::PointCloud2 cloud) {
 
@@ -1098,8 +1154,8 @@ bool ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
         ros::Publisher seg_points_pub2 = nh.advertise<sensor_msgs::PointCloud2>("/seg_cloud", 5);
         seg_points_pub = &seg_points_pub2;
 
-//    ros::Publisher segment_pub2 = nh.advertise<loam_velodyne::SegmentCloud>("/segments_to_detect", 5);
-//    segment_pub = &segment_pub2;
+        ros::Publisher poles_pub2 = nh.advertise<sensor_msgs::PointCloud2>("/poles_cloud", 5);
+        poles_pub = &poles_pub2;
 
 //        tf::TransformBroadcaster tf_seg2;
 //        tf_seg = &tf_seg2;
