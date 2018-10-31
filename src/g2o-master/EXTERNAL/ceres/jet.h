@@ -144,7 +144,7 @@
 //
 // By pushing these things through sufficiently and suitably templated
 // functions, we can do automatic differentiation. Just be sure to turn on
-// function inlining and common-subexpression elimination, or it will be very
+// function inlining and common_o-subexpression elimination, or it will be very
 // slow!
 //
 // WARNING: Most Ceres users should not directly include this file or know the

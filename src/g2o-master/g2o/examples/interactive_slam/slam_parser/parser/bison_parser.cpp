@@ -823,7 +823,7 @@ namespace SlamParser {
     goto yyerrlab1;
 
   /*-------------------------------------------------------------.
-  | yyerrlab1 -- common code for both syntax error and YYERROR.  |
+  | yyerrlab1 -- common_o code for both syntax error and YYERROR.  |
   `-------------------------------------------------------------*/
   yyerrlab1:
     yyerrstatus_ = 3;  /* Each real token shifted decrements this.  */

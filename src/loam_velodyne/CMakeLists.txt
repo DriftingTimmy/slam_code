@@ -52,8 +52,8 @@ include_directories(
         "/usr/include/eigen3"
 )
 # CSparse
-#FIND_PACKAGE( CSparse )
-#INCLUDE_DIRECTORIES( ${G2O_INCLUDE_DIR} ${CSPARSE_INCLUDE_DIR} )
+FIND_PACKAGE( CSparse )
+INCLUDE_DIRECTORIES( ${G2O_INCLUDE_DIR} ${CSPARSE_INCLUDE_DIR} )
 
 SET( CMAKE_CXX_FLAGS "-std=c++11 -O3")
 

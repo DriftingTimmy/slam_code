@@ -18,5 +18,5 @@ csi cs_leaf (csi i, csi j, const csi *first, csi *maxfirst, csi *prevleaf,
         sparent = ancestor [s] ;    /* path compression */
         ancestor [s] = q ;
     }
-    return (q) ;                    /* q = least common ancester (jprev,j) */
+    return (q) ;                    /* q = least common_o ancester (jprev,j) */
 }

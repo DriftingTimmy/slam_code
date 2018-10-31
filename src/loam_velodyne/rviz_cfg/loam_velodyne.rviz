@@ -112,13 +112,13 @@ Visualization Manager:
     - Angle Tolerance: 0.1
       Class: rviz/Odometry
       Color: 0; 170; 0
-      Enabled: true
+      Enabled: false
       Keep: 10000000
       Length: 5
       Name: Odometry
       Position Tolerance: 0.1
       Topic: /aft_mapped_to_init
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -210,23 +210,23 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/XYOrbit
-      Distance: 921.705
+      Class: rviz/Orbit
+      Distance: 694.501
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -91.4924
-        Y: 63.8104
-        Z: 7.70842e-06
+        X: -33.4511
+        Y: -16.4642
+        Z: -1.00232
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 1.5698
+      Pitch: 1.56976
       Target Frame: aft_mapped
-      Value: XYOrbit (rviz)
-      Yaw: 2.26659
+      Value: Orbit (rviz)
+      Yaw: 2.05159
     Saved: ~
 Window Geometry:
   Displays:
