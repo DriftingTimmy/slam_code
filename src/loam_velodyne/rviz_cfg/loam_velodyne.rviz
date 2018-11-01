@@ -33,7 +33,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
 Visualization Manager:
   Class: ""
   Displays:
@@ -41,7 +41,7 @@ Visualization Manager:
       Cell Size: 20
       Class: rviz/Grid
       Color: 160; 160; 164
-      Enabled: false
+      Enabled: true
       Line Style:
         Line Width: 0.03
         Value: Lines
@@ -54,7 +54,7 @@ Visualization Manager:
       Plane: XY
       Plane Cell Count: 40
       Reference Frame: <Fixed Frame>
-      Value: false
+      Value: true
     - Class: rviz/TF
       Enabled: false
       Frame Timeout: 15
@@ -104,7 +104,7 @@ Visualization Manager:
       Size (Pixels): 1
       Size (m): 0.01
       Style: Points
-      Topic: /velodyne_cloud_registered
+      Topic: /seg_cloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -114,7 +114,7 @@ Visualization Manager:
       Color: 0; 170; 0
       Enabled: false
       Keep: 10000000
-      Length: 5
+      Length: 8
       Name: Odometry
       Position Tolerance: 0.1
       Topic: /aft_mapped_to_init
@@ -131,7 +131,7 @@ Visualization Manager:
       Color: 85; 170; 255
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 255.225
@@ -141,14 +141,14 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 15
+      Size (Pixels): 5
       Size (m): 0.01
       Style: Points
-      Topic: /poles_cloud
+      Topic: /poles_2d_map
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -211,22 +211,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 694.501
+      Distance: 85.4022
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -33.4511
-        Y: -16.4642
-        Z: -1.00232
+        X: 7.08812
+        Y: -0.438859
+        Z: -13.287
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 1.56976
+      Pitch: 0.97476
       Target Frame: aft_mapped
       Value: Orbit (rviz)
-      Yaw: 2.05159
+      Yaw: 0.666591
     Saved: ~
 Window Geometry:
   Displays:
