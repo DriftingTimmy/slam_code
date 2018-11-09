@@ -11,7 +11,19 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf)
 
-#find_package(Eigen3 REQUIRED)
+set(CMAKE_MODULE_PATH /home/lx/lx_slam/src/cmake_modules)
+find_package(Eigen3 REQUIRED)
+#if(NOT EIGEN3_FOUND)
+#    # Fallback to cmake_modules
+#    find_package(cmake_modules REQUIRED)
+#    find_package(Eigen REQUIRED)
+#    set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
+#    set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})  # Not strictly necessary as Eigen is head only
+#    # Possibly map additional variables to the EIGEN3_ prefix.
+#else()
+#    set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+#endif()
+
 find_package(PCL REQUIRED)
 find_package(OpenCV REQUIRED)
 
@@ -44,7 +56,7 @@ catkin_package(
 
 # 添加g2o的依赖
 # 因为g2o不是常用库，要添加它的findg2o.cmake文件
-LIST( APPEND CMAKE_MODULE_PATH /home/lx/lx_slam/src/g2o-master/cmake_modules )
+LIST( APPEND CMAKE_MODULE_PATH /home/lx/lx_slam/src/cmake_modules )
 SET( G2O_ROOT /usr/local/include/g2o )
 FIND_PACKAGE( G2O )
 include_directories(
@@ -60,12 +72,11 @@ SET( CMAKE_CXX_FLAGS "-std=c++11 -O3")
 add_library(segmenter src/segmenter.cpp src/segmenter.h src/common_function.h)
 target_link_libraries(segmenter ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBS})
 
-#add_library(graphSlam src/graphSlam.cpp src/graphSlam.h include/g2o/edge_se3_plane.h src/common_function.h
-#        include/g2o/edge_se3_priorxy.h include/g2o/edge_se3_priorxyz.h)
+add_library(graphSlam src/graphSlam.cpp src/graphSlam.h src/common_function.h)
 
-#target_link_libraries(graphSlam ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBS} ${G2O_LIBS} ${G2O_CORE_LIBRARY}
-#        ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_PCG} ${G2O_SOLVER_CSPARSE} ${G2O_TYPES_SLAM3D} ${G2O_TYPES_SLAM3D_ADDONS}
-#        ${G2O_TYPES_DATA})
+target_link_libraries(graphSlam ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBS} ${G2O_LIBS} ${G2O_CORE_LIBRARY}
+        ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_PCG} ${G2O_SOLVER_CSPARSE} ${G2O_TYPES_SLAM3D} ${G2O_TYPES_SLAM3D_ADDONS}
+        ${G2O_TYPES_DATA})
 
 # ${G2O_LIBS}
 add_library(Odometry src/Odometry.cpp src/Odometry.h src/common_function.h)
@@ -83,7 +94,7 @@ target_link_libraries(laserMapping ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV
 
 add_executable(transformMaintenance src/transformMaintenance.cpp )
 add_dependencies(transformMaintenance ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(transformMaintenance ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} tinyxml Odometry segmenter)
+target_link_libraries(transformMaintenance ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} tinyxml Odometry segmenter graphSlam)
 
 if (CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)

@@ -21,6 +21,7 @@
 #include <pcl/common/transforms.h>
 #include "segmenter.h"
 #include "Odometry.h"
+#include "graphSlam.h"
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 
@@ -109,8 +110,34 @@ using namespace std;
 
     pcl::PointCloud<pcl::PointXYZI> poles_cloud_map;
     pcl::PointCloud<pcl::PointXYZ>::Ptr poles_cloud_map_2d(new pcl::PointCloud<pcl::PointXYZ>());
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr poses_map_2d_time(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr poses_map_2d(new pcl::PointCloud<pcl::PointXYZ>());
+
+    std::vector<cv::Point3f> poles_map_vec;
+    static double init_time;
+    static bool isSetInitTime = false;
+
+    visualization_msgs::MarkerArray markers;
+    static int marker_id = 1;
     ///Search pose map
 ///Feature Extract Part
+
+///Graph SLAM Part
+
+    typedef g2o::BlockSolver_6_3 SlamBlockSolver;
+//    typedef g2o::LinearSolverCSparse <SlamBlockSolver::PoseMatrixType> SlamLinearSolver;
+
+    struct Id {
+
+        int counter;
+        double time_ns;
+
+    };
+    g2o::SparseOptimizer trajectory_optimizer_;
+    static Eigen::Matrix4f transform_last = Eigen::Matrix4f::Identity();
+    Id pose_id_last;
+///Graph SLAM Part END
 
     double time_stamp;
 
@@ -118,6 +145,8 @@ using namespace std;
     ros::Publisher *seg_points_pub = NULL;
     ros::Publisher *poles_pub = NULL;
     ros::Publisher *poles_pub_2d = NULL;
+    ros::Publisher *markers_pub2 = NULL;
+
     tf::TransformBroadcaster *tfBroadcaster2Pointer = NULL;
     tf::TransformBroadcaster *tf_seg = NULL;
     nav_msgs::Odometry laserOdometry2;
@@ -156,13 +185,13 @@ using namespace std;
 ////    std::cout << "xml has been load!" << std::endl;
 //    }
 
-    bool swap_if_gt(float &a, float &b) {
-        if (a > b) {
-            std::swap(a, b);
-            return true;
-        }
-        return false;
-    }
+//    bool swap_if_gt(float &a, float &b) {
+//        if (a > b) {
+//            std::swap(a, b);
+//            return true;
+//        }
+//        return false;
+//    }
 
     void MergeSensorData(sensor_msgs::Imu imu_data,
                     nav_msgs::Odometry vel_data,
@@ -195,9 +224,9 @@ using namespace std;
 
         predict_pose_ = pose_ekf_ + inc_distance_global;
 
-        std::cout << "inc_car :  "<< inc_distance_global << std::endl;
+//        std::cout << "inc_car :  "<< inc_distance_global << std::endl;
 //        std::cout << "predict pose :  "<< predict_pose_ << std::endl;
-        std::cout << "mea pose : " << measure_pose_ << std::endl;
+//        std::cout << "mea pose : " << measure_pose_ << std::endl;
         std::cout << "ekf pose :  "<< pose_ekf_ << std::endl;
 
 //        last_q_ = cur_q;
@@ -268,6 +297,117 @@ bool check_translation() {
         return false;
 
 }
+
+void Link_constrait_poses(Eigen::Vector3f estimate_pose, Eigen::Vector3f local_pose,
+                          nav_msgs::Odometry::ConstPtr laserOdometry){
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = laserOdometry->header.frame_id;
+    marker.header.stamp = laserOdometry->header.stamp;
+
+    marker.ns = "basic_shapes";
+    marker.id = marker_id;
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    geometry_msgs::Point start_point;
+    geometry_msgs::Point end_point;
+
+    start_point.x = estimate_pose[0];
+    start_point.y = estimate_pose[1];
+    start_point.z = 0;
+
+    end_point.x = local_pose[0];
+    end_point.y = local_pose[1];
+    end_point.z = 0;
+
+    marker.points.push_back(start_point);
+    marker.points.push_back(end_point);
+
+    marker.scale.x = 0.3;
+    marker.scale.y = 0.7;
+    marker.scale.z = 0.4;
+
+    marker.color.r = 0.0f;
+    marker.color.g = 1.0f;
+    marker.color.b = 0.0f;
+    marker.color.a = 1.0f;
+
+    marker.lifetime = ros::Duration();
+
+    markers.markers.push_back(marker);
+    markers_pub2->publish(markers);
+
+    marker_id++;
+    }
+
+/**************************************G2O PART*********************************/
+//void init() {
+//
+//    g2o::LinearSolverCSparse<SlamBlockSolver::PoseMatrixType>* linearSolver
+//            = new g2o::LinearSolverCSparse<SlamBlockSolver::PoseMatrixType>();
+//    linearSolver->setBlockOrdering( false );
+//    auto* blockSolver = new SlamBlockSolver( linearSolver );
+//    auto* solver =
+//            new g2o::OptimizationAlgorithmLevenberg( blockSolver );
+//    trajectory_optimizer_.setAlgorithm( solver );
+    ///no debug information out
+//    trajectory_optimizer_.setVerbose( false );
+    //optimize_step_ = save_num_ ;
+
+//    auto* v = new g2o::VertexSE3();
+//    v->setId( 0 );
+//    v->setEstimate( Eigen::Isometry3d::Identity() ); //估计为单位矩阵
+//    v->setFixed( true ); //第一个顶点固定，不用优化
+//    trajectory_optimizer_.addVertex( v );
+//}
+
+//void addVertexToGraph(Eigen::Matrix4f& pose_to_add,
+//                      Id vertex_id) {
+//
+//    Eigen::Isometry3d vertex_transform;
+//    Matrix_to_Isometry(pose_to_add,vertex_transform);
+//
+//    g2o::VertexSE3 *v = new g2o::VertexSE3();
+//    v->setId(vertex_id.counter);
+//    v->setEstimate(vertex_transform);/// vertex pose = current pose
+//    trajectory_optimizer_.addVertex(v);
+//
+//    Id pose_id;
+//    pose_id = vertex_id;
+////        pose_sequence_.insert({pose_id, pose_to_add});
+////        Id_list_.push_back(pose_id);
+//    vertex_id.counter++;
+//}
+
+//void addEdgeToGraph(Eigen::Matrix4f transform_between_vertexes,
+//                    Id id1, Id id2) {
+//    g2o::EdgeSE3 *edge = new g2o::EdgeSE3();
+//
+//    edge->setVertex(0, trajectory_optimizer_.vertex(id1.counter));
+//    edge->setVertex(1, trajectory_optimizer_.vertex(id2.counter));
+////        edge->setRobustKernel(new g2o::RobustKernel());
+//
+//    Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
+////
+////    information(0, 0) = information(1, 1) = information(2, 2) = 100;
+////    information(3, 3) = information(4, 4) = information(5, 5) = 100;
+//    ///信息矩阵的元素应该随置信度而变化，有待修改
+//
+//    edge->setInformation(information);
+//
+//    Eigen::Isometry3d T;
+//    Matrix_to_Isometry(transform_between_vertexes,T);
+//
+//    edge->setMeasurement(T);
+//
+//    trajectory_optimizer_.addEdge(edge);
+//
+//}
+/**************************************G2O PART END*********************************/
+
+/*******************************************SEARCH & MATCH PART*********************************/
+
+/*******************************************SEARCH & MATCH PART*********************************/
 
 /********************************************Feature Extract Part**********************************************/
 
@@ -806,7 +946,13 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
         geometry_msgs::Quaternion geoQuat = laserOdometry->pose.pose.orientation;
         tf::Matrix3x3(tf::Quaternion(geoQuat.z, -geoQuat.x, -geoQuat.y, geoQuat.w)).getRPY(roll, pitch, yaw);
 
-//        cur_time = laserOdometry->header.stamp.toSec();
+        cur_time = laserOdometry->header.stamp.toSec();
+
+        if(!isSetInitTime){
+            init_time = cur_time;
+            last_time = cur_time;
+            isSetInitTime = true;
+        }
 
         transformSum[0] = -pitch;
         transformSum[1] = -yaw;
@@ -854,14 +1000,15 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
 //                        << transformMapped[2] << " " << transformMapped[3] << " " << transformMapped[4] << " "
 //                        << transformMapped[5] << " " << std::endl;
 
-                    double diff_time = cur_time - last_time;
+//                double diff_time = 0;
+//                    Eigen::Vector3f mea_pose = {transformMapped[3], transformMapped[4], -transformMapped[1]};
+                Eigen::Vector3f mea_pose = {transformMapped[3], transformMapped[4], transformMapped[2]};
 
-                    Eigen::Vector3f mea_pose = {transformMapped[3], transformMapped[4], -transformMapped[1]};
 
-                    setMea(mea_pose);
+                setMea(mea_pose);
 //                std::cout <<"Begin the EKF part"<< std::endl;
 
-                    MergeSensorData(Imu_msg, obd_msg, diff_time);
+                    MergeSensorData(Imu_msg, obd_msg, 0);
                     Eigen::Matrix4f ekf_pose_mat = get_ekf_pose();
                     Eigen::Vector3d ekf_pose;
 
@@ -896,20 +1043,111 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
                 ///记住上面的对应关系！！！！！！！很重要！！！！！！！
                 ///全局对应的位姿信息！很重要！！！
 
+                /********************************Graph SLAM part**********************************/
+                Id pose_id;
+                pose_id.counter = frame_id;
+                pose_id.time_ns = cur_time;
+
+                //addVertexToGraph(transform, pose_id);
+                Eigen::Matrix4f trans_between_vertex = Eigen::Matrix4f::Identity();
+                trans_between_vertex = transform * transform_last.inverse();
+                //addEdgeToGraph(trans_between_vertex, pose_id, pose_id_last);
+
+                pose_id_last = pose_id;
+                /********************************Graph SLAM part**********************************/
+
                 pcl::PointCloud<pcl::PointXYZI> trans_poles_cloud;
                 pcl::transformPointCloud(*poles_cloud, trans_poles_cloud, transform);
 
+                /********************************SEARCH & MATCH part**********************************/
+
+                pcl::PointXYZ pose_point;
+                pcl::PointXYZ pose_point_time;
+                pose_point.x = transformMapped[3];
+                pose_point.y = transformMapped[4];
+                pose_point.z = 0;
+                poses_map_2d->push_back(pose_point);
+
+                pose_point_time = pose_point;
+                pose_point_time.z = frame_id;
+                poses_map_2d_time->push_back(pose_point_time);
+
+                pcl::KdTreeFLANN<pcl::PointXYZ> kd_poses_2d;
+                kd_poses_2d.setInputCloud(poses_map_2d);
+                std::vector<int> posesInd_history_2d;
+                std::vector<float> posesDist_history_2d;
+                bool time_gap_enough = false;
+
+                if(kd_poses_2d.radiusSearch
+                        (pose_point, 20, posesInd_history_2d, posesDist_history_2d) > 0){
+                    for(auto it_time = posesInd_history_2d.begin(); it_time != posesInd_history_2d.end(); it_time++){
+
+                        int gap = frame_id - (int)poses_map_2d_time->at(*it_time).z;
+//                        std::cout << "\033[1;31m Frame_id GAP is : \033[0m "
+//                                     << gap << std::endl;
+                        if(gap < 500)
+                            continue;
+                        else{
+                            time_gap_enough = true;
+                            break;
+                        }
+                    }
+                }
+
+                std::vector<cv::Point2f> poles_cur_points;
+                int match_pair_counter = 0;
+
+                pcl::PointCloud<pcl::PointXYZ> match_point_history;
+                std::vector<cv::Point2f> ori_points;
+
+                if(!poles_cloud_map_2d->empty() && trans_poles_cloud.size() > 3 && time_gap_enough){
+
+                    for(auto point : trans_poles_cloud ){
+                        poles_cur_points.emplace_back(cv::Point2f(point.x,point.y));
+                    }
+
+                    pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_poses_2d;
+                    kdtree_poses_2d.setInputCloud(poles_cloud_map_2d);
+
+                    int search_pose_radius = 30;
+                    std::vector<int> polesInd_history_2d;
+                    std::vector<float> polesDist_history_2d;
+
+                    if(kdtree_poses_2d.radiusSearch
+                            (pose_point, search_pose_radius, polesInd_history_2d, polesDist_history_2d) > 0){
+                        for(auto Ind_it = polesInd_history_2d.begin(); Ind_it != polesInd_history_2d.end() - 1; Ind_it++){
+                            ori_points.emplace_back(cv::Point2f(poles_cloud_map_2d->at(*Ind_it).x,
+                                                 poles_cloud_map_2d->at(*Ind_it).y));
+                            match_point_history.push_back(poles_cloud_map_2d->at(*Ind_it));
+                        }
+                    }
+
+                    Eigen::Vector3f rotated_pose;
+                    Eigen::Vector3f estimate_pose_2d = {transformMapped[3],transformMapped[4],transformMapped[2]};
+
+                    match_pair_counter = Transform(poles_cur_points, estimate_pose_2d, rotated_pose, ori_points);
+
+                    if(match_pair_counter > 5 && trans_poles_cloud.size() > 5){
+                        Link_constrait_poses(estimate_pose_2d, rotated_pose, laserOdometry);
+                    }
+
+                }
+                ///Add the corresponding points here
+
+                /********************************SEARCH & MATCH part**********************************/
+
                 /********************************Add to poles map**********************************/
-                if(poles_cloud_map_2d->size() == 0){
+                if(poles_cloud_map_2d->empty()){
                     for(pcl::PointXYZI point_pole : trans_poles_cloud){
                         pcl::PointXYZ point_pole_2d;
                         point_pole_2d.x = point_pole.x;
                         point_pole_2d.y = point_pole.y;
                         point_pole_2d.z = 0;
 
+                        poles_map_vec.emplace_back(cv::Point3f(point_pole.x, point_pole.y, cur_time));
                         poles_cloud_map_2d->push_back(point_pole_2d);
                     }
-                }else{
+                }else if (match_pair_counter < 3){
                     pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_poles_2d;
                     kdtree_poles_2d.setInputCloud(poles_cloud_map_2d);
 
@@ -919,13 +1157,14 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
                         poles_add_2d.y = point_pole.y;
                         poles_add_2d.z = 0;
 
-                        double dist_radius = 2;
+                        double dist_radius = 3;
                         std::vector<int> polesInd_2d;
                         std::vector<float> polesDist_2d;
                         if(kdtree_poles_2d.radiusSearch(poles_add_2d, dist_radius, polesInd_2d, polesDist_2d) > 0){
                             continue;
                         }else{
                             poles_cloud_map_2d->push_back(poles_add_2d);
+                            poles_map_vec.emplace_back(cv::Point3f(poles_add_2d.x, poles_add_2d.y, cur_time));
 
                             std::cout << "\033[1;31m[>> Feature Extraction]\033[0m  Add new poles to map" << std::endl;
                         }
@@ -960,8 +1199,6 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
                         (new pcl::PointCloud<pcl::PointXYZI>());
 
                 *cloud_to_filter_ptr = cloud_for_cluster;
-//                    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered_ptr
-//                            (new pcl::PointCloud<pcl::PointXYZI>());
 
                 pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_filtered_ptr
                         (new pcl::PointCloud<pcl::PointXYZI>());
@@ -980,12 +1217,12 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
                 outrem_.setMinNeighborsInRadius(5);
                 outrem_.filter(*filtered_cloud_);
 
-                std::cout<< "size of filter cloud : " << filtered_cloud_->points.size() << std::endl;
+//                std::cout<< "size of filter cloud : " << filtered_cloud_->points.size() << std::endl;
 
                 float dist_between_last_trans = std::hypotf(fabs(transformMapped[3] - transformMappedLast[3]),
                                                             fabs(transformMapped[4] - transformMappedLast[4]));
                 if (dist_between_last_trans < dist_to_build_local_map ) {
-                    std::cout<< "add fucking map "<< dist_between_last_trans << std::endl;
+//                    std::cout<< "add fucking map "<< dist_between_last_trans << std::endl;
 //                    cloud_for_cluster += cloud_to_add;
                     cloud_for_cluster += *filtered_cloud_;
 
@@ -1074,9 +1311,6 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
 //                    seg_points_pub->publish(seg_cloud_msg);
 
                     /******************************segment************************************/
-
-                    frame_id++;
-
                     /******************************graph slam part************************************/
 
                     transformMappedLast[0] = transformMapped[0];
@@ -1097,6 +1331,8 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
                 (transformMapped[2], -transformMapped[0], -transformMapped[1]);
 //    geoQuat = tf::createQuaternionMsgFromRollPitchYaw
 //            (0, 0, 0);
+
+        frame_id++;
 
         laserOdometry2.header.stamp = laserOdometry->header.stamp;
         laserOdometry2.pose.pose.orientation.x = -geoQuat.y;
@@ -1195,7 +1431,6 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
         cloud_to_match.at(local_match_pointer) = cloud;
 
         local_match_pointer = (local_match_pointer + 1) % 5;
-
     }
 
     int main(int argc, char **argv) {
@@ -1205,6 +1440,10 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
 
 //        private_nh.getParam("read_config_path", read_config_path);
         ///read_xml();
+
+//        init();///graph SLAM initialization
+        pose_id_last.time_ns = 0;
+        pose_id_last.counter = 0;
 
         cloud_to_match.resize(10);
 
@@ -1234,6 +1473,9 @@ void ExtractPoles(pcl::PointCloud<pcl::PointXYZI> cloud,
 
         ros::Publisher poles_pub2_2d = nh.advertise<sensor_msgs::PointCloud2>("/poles_2d_map", 5);
         poles_pub_2d = &poles_pub2_2d;
+
+        ros::Publisher markers_pub = nh.advertise<visualization_msgs::MarkerArray>("/marker_constraint", 5);
+        markers_pub2 = &markers_pub;
 
 //        tf::TransformBroadcaster tf_seg2;
 //        tf_seg = &tf_seg2;

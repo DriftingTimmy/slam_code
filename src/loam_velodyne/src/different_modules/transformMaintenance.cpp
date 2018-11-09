@@ -446,39 +446,39 @@ Eigen::Vector3f mergeMultiSensors(double diff_time, float x, float y, float yaw,
     return integrated_pose;
 }
 
-//                    pcl::RadiusOutlierRemoval<pcl::PointXYZI> outrem;
-//                    outrem.setInputCloud(cloud_filtered_ptr);
-//                    outrem.setRadiusSearch(0.5);     //设置半径为0.5的范围内找临近点
-//                    outrem.setMinNeighborsInRadius(30); //设置查询点的邻域点集数小于30的删除
-//                    outrem.filter(*cloud_filtered_ptr);     //执行条件滤波,在半径为0.5在此半径内必须要有30个邻居点，此点才会保存
+                    pcl::RadiusOutlierRemoval<pcl::PointXYZI> outrem;
+                    outrem.setInputCloud(cloud_filtered_ptr);
+                    outrem.setRadiusSearch(0.5);     //设置半径为0.5的范围内找临近点
+                    outrem.setMinNeighborsInRadius(30); //设置查询点的邻域点集数小于30的删除
+                    outrem.filter(*cloud_filtered_ptr);     //执行条件滤波,在半径为0.5在此半径内必须要有30个邻居点，此点才会保存
 
-//            sensor_msgs::PointCloud2 cloud_cluster_pub;
-//            pcl::toROSMsg(cloud_mutual, cloud_cluster_pub);
-//
-//            std::cout << "The clustered cloud size is : " << cloud_cluster_pub.data.size() << std::endl;
-//            cloud_cluster_pub.header.stamp = cloud_iter->header.stamp;
-//            cloud_cluster_pub.header.frame_id = "/camera_init";
-//            seg_points_pub->publish(cloud_cluster_pub);
-///Test the single frame
-//            Eigen::Matrix4f transform = pose_to_matrix(transformMapped[3],transformMapped[4],
-//                                                       transformMapped[5],transformMapped[1],
-//                                                       -transformMapped[0],transformMapped[2]);
+            sensor_msgs::PointCloud2 cloud_cluster_pub;
+            pcl::toROSMsg(cloud_mutual, cloud_cluster_pub);
+
+            std::cout << "The clustered cloud size is : " << cloud_cluster_pub.data.size() << std::endl;
+            cloud_cluster_pub.header.stamp = cloud_iter->header.stamp;
+            cloud_cluster_pub.header.frame_id = "/camera_init";
+            seg_points_pub->publish(cloud_cluster_pub);
+//Test the single frame
+            Eigen::Matrix4f transform = pose_to_matrix(transformMapped[3],transformMapped[4],
+                                                       transformMapped[5],transformMapped[1],
+                                                       -transformMapped[0],transformMapped[2]);
 
 
-//                Eigen::Vector3f measure_pose = {transformMapped[3], transformMapped[4], -transformMapped[1]};
-//                Eigen::Vector3f ekf_pose = getEKFPose(predict_pose, measure_pose, diff_theta, diff_time, inc_dist);
-//                pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_to_save_ptr(
-//                        new pcl::PointCloud<pcl::PointXYZI>(cloud_to_save));
+                Eigen::Vector3f measure_pose = {transformMapped[3], transformMapped[4], -transformMapped[1]};
+                Eigen::Vector3f ekf_pose = getEKFPose(predict_pose, measure_pose, diff_theta, diff_time, inc_dist);
+                pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_to_save_ptr(
+                        new pcl::PointCloud<pcl::PointXYZI>(cloud_to_save));
 
-//                float inc_dist;
-//                float diff_theta;
-//            Eigen::Vector3f predict_pose = mergeMultiSensors(diff_time, transformMappedLast[3],
-//                                                             transformMappedLast[4], -transformMappedLast[1],
-//                                                             inc_dist, diff_theta);
+                float inc_dist;
+                float diff_theta;
+            Eigen::Vector3f predict_pose = mergeMultiSensors(diff_time, transformMappedLast[3],
+                                                             transformMappedLast[4], -transformMappedLast[1],
+                                                             inc_dist, diff_theta);
 
-//            std::cout << "%%%%The output odometry is " << transformMapped[0] << " " << transformMapped[1] << " " << transformMapped[2]
-//            <<" " << transformMapped[3]<<" " << transformMapped[4]<<" " << transformMapped[5] <<std::endl;
+            std::cout << "%%%%The output odometry is " << transformMapped[0] << " " << transformMapped[1] << " " << transformMapped[2]
+            <<" " << transformMapped[3]<<" " << transformMapped[4]<<" " << transformMapped[5] <<std::endl;
 
-//            posefile << frame_id << " " << transformMapped[3] << " " << transformMapped[4] << " " << transformMapped[5]
-//                     << " " << transformMapped[2] << " " << -transformMapped[0] << " " << -transformMapped[1]
-//                     << " " << score << std::endl;
+            posefile << frame_id << " " << transformMapped[3] << " " << transformMapped[4] << " " << transformMapped[5]
+                     << " " << transformMapped[2] << " " << -transformMapped[0] << " " << -transformMapped[1]
+                     << " " << score << std::endl;

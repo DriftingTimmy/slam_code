@@ -38,7 +38,7 @@ Visualization Manager:
   Class: ""
   Displays:
     - Alpha: 0.5
-      Cell Size: 20
+      Cell Size: 10
       Class: rviz/Grid
       Color: 160; 160; 164
       Enabled: true
@@ -52,7 +52,7 @@ Visualization Manager:
         Y: 0
         Z: 0
       Plane: XY
-      Plane Cell Count: 40
+      Plane Cell Count: 10000
       Reference Frame: <Fixed Frame>
       Value: true
     - Class: rviz/TF
@@ -111,14 +111,14 @@ Visualization Manager:
       Value: false
     - Angle Tolerance: 0.1
       Class: rviz/Odometry
-      Color: 0; 170; 0
-      Enabled: false
+      Color: 0; 0; 255
+      Enabled: true
       Keep: 10000000
-      Length: 8
+      Length: 5
       Name: Odometry
       Position Tolerance: 0.1
       Topic: /aft_mapped_to_init
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -180,16 +180,16 @@ Visualization Manager:
       Use rainbow: true
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /search_point_centroids
+      Enabled: true
+      Marker Topic: /marker_constraint
       Name: MarkerArray
       Namespaces:
-        {}
+        basic_shapes: true
       Queue Size: 100
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
-    Background Color: 48; 48; 48
+    Background Color: 70; 70; 70
     Fixed Frame: camera_init
     Frame Rate: 30
   Name: root
@@ -211,22 +211,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 85.4022
+      Distance: 277.56
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 7.08812
-        Y: -0.438859
-        Z: -13.287
+        X: -25.5891
+        Y: -33.7256
+        Z: -12.9435
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.97476
+      Pitch: 1.5598
       Target Frame: aft_mapped
       Value: Orbit (rviz)
-      Yaw: 0.666591
+      Yaw: 1.63159
     Saved: ~
 Window Geometry:
   Displays:
